@@ -94,6 +94,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "ZakaPay — Pay together, checkout as one" },
+      { name: "description", content: "A single successful payment for merchants. A frictionless split for buyers. ZakaPay orchestrates contributor and multi-card checkouts." },
+      { property: "og:description", content: "A single successful payment for merchants. A frictionless split for buyers. ZakaPay orchestrates contributor and multi-card checkouts." },
+      { name: "twitter:description", content: "A single successful payment for merchants. A frictionless split for buyers. ZakaPay orchestrates contributor and multi-card checkouts." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/7dd17581-f2e1-4004-adf7-360f6ec81f48" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/7dd17581-f2e1-4004-adf7-360f6ec81f48" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
