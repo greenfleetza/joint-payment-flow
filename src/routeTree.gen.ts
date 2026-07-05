@@ -10,9 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CTokenRouteImport } from './routes/c.$token'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as CheckoutSessionIdIndexRouteImport } from './routes/checkout.$sessionId.index'
+import { Route as AuthenticatedSessionsIndexRouteImport } from './routes/_authenticated/sessions.index'
 import { Route as CheckoutSessionIdStatusRouteImport } from './routes/checkout.$sessionId.status'
 import { Route as CheckoutSessionIdProcessingRouteImport } from './routes/checkout.$sessionId.processing'
 import { Route as CheckoutSessionIdPayRouteImport } from './routes/checkout.$sessionId.pay'
@@ -20,10 +25,15 @@ import { Route as CheckoutSessionIdInvitedRouteImport } from './routes/checkout.
 import { Route as CheckoutSessionIdContributorsRouteImport } from './routes/checkout.$sessionId.contributors'
 import { Route as CheckoutSessionIdCompleteRouteImport } from './routes/checkout.$sessionId.complete'
 import { Route as CheckoutSessionIdCardsRouteImport } from './routes/checkout.$sessionId.cards'
+import { Route as AuthenticatedSessionsIdRouteImport } from './routes/_authenticated/sessions.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -36,11 +46,32 @@ const CTokenRoute = CTokenRouteImport.update({
   path: '/c/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const CheckoutSessionIdIndexRoute = CheckoutSessionIdIndexRouteImport.update({
   id: '/checkout/$sessionId/',
   path: '/checkout/$sessionId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSessionsIndexRoute =
+  AuthenticatedSessionsIndexRouteImport.update({
+    id: '/sessions/',
+    path: '/sessions/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const CheckoutSessionIdStatusRoute = CheckoutSessionIdStatusRouteImport.update({
   id: '/checkout/$sessionId/status',
   path: '/checkout/$sessionId/status',
@@ -80,11 +111,20 @@ const CheckoutSessionIdCardsRoute = CheckoutSessionIdCardsRouteImport.update({
   path: '/checkout/$sessionId/cards',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSessionsIdRoute = AuthenticatedSessionsIdRouteImport.update({
+  id: '/sessions/$id',
+  path: '/sessions/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/c/$token': typeof CTokenRoute
+  '/sessions/$id': typeof AuthenticatedSessionsIdRoute
   '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
   '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
   '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
@@ -92,12 +132,17 @@ export interface FileRoutesByFullPath {
   '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
   '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
   '/checkout/$sessionId/status': typeof CheckoutSessionIdStatusRoute
+  '/sessions/': typeof AuthenticatedSessionsIndexRoute
   '/checkout/$sessionId/': typeof CheckoutSessionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/analytics': typeof AuthenticatedAnalyticsRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/c/$token': typeof CTokenRoute
+  '/sessions/$id': typeof AuthenticatedSessionsIdRoute
   '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
   '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
   '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
@@ -105,13 +150,19 @@ export interface FileRoutesByTo {
   '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
   '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
   '/checkout/$sessionId/status': typeof CheckoutSessionIdStatusRoute
+  '/sessions': typeof AuthenticatedSessionsIndexRoute
   '/checkout/$sessionId': typeof CheckoutSessionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/analytics': typeof AuthenticatedAnalyticsRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/c/$token': typeof CTokenRoute
+  '/_authenticated/sessions/$id': typeof AuthenticatedSessionsIdRoute
   '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
   '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
   '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
@@ -119,6 +170,7 @@ export interface FileRoutesById {
   '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
   '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
   '/checkout/$sessionId/status': typeof CheckoutSessionIdStatusRoute
+  '/_authenticated/sessions/': typeof AuthenticatedSessionsIndexRoute
   '/checkout/$sessionId/': typeof CheckoutSessionIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -126,7 +178,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/analytics'
+    | '/dashboard'
+    | '/settings'
     | '/c/$token'
+    | '/sessions/$id'
     | '/checkout/$sessionId/cards'
     | '/checkout/$sessionId/complete'
     | '/checkout/$sessionId/contributors'
@@ -134,12 +190,17 @@ export interface FileRouteTypes {
     | '/checkout/$sessionId/pay'
     | '/checkout/$sessionId/processing'
     | '/checkout/$sessionId/status'
+    | '/sessions/'
     | '/checkout/$sessionId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/analytics'
+    | '/dashboard'
+    | '/settings'
     | '/c/$token'
+    | '/sessions/$id'
     | '/checkout/$sessionId/cards'
     | '/checkout/$sessionId/complete'
     | '/checkout/$sessionId/contributors'
@@ -147,12 +208,18 @@ export interface FileRouteTypes {
     | '/checkout/$sessionId/pay'
     | '/checkout/$sessionId/processing'
     | '/checkout/$sessionId/status'
+    | '/sessions'
     | '/checkout/$sessionId'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/auth'
+    | '/_authenticated/analytics'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/settings'
     | '/c/$token'
+    | '/_authenticated/sessions/$id'
     | '/checkout/$sessionId/cards'
     | '/checkout/$sessionId/complete'
     | '/checkout/$sessionId/contributors'
@@ -160,11 +227,13 @@ export interface FileRouteTypes {
     | '/checkout/$sessionId/pay'
     | '/checkout/$sessionId/processing'
     | '/checkout/$sessionId/status'
+    | '/_authenticated/sessions/'
     | '/checkout/$sessionId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CTokenRoute: typeof CTokenRoute
   CheckoutSessionIdCardsRoute: typeof CheckoutSessionIdCardsRoute
@@ -186,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -200,12 +276,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/analytics': {
+      id: '/_authenticated/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/checkout/$sessionId/': {
       id: '/checkout/$sessionId/'
       path: '/checkout/$sessionId'
       fullPath: '/checkout/$sessionId/'
       preLoaderRoute: typeof CheckoutSessionIdIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/sessions/': {
+      id: '/_authenticated/sessions/'
+      path: '/sessions'
+      fullPath: '/sessions/'
+      preLoaderRoute: typeof AuthenticatedSessionsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/checkout/$sessionId/status': {
       id: '/checkout/$sessionId/status'
@@ -256,11 +360,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutSessionIdCardsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/sessions/$id': {
+      id: '/_authenticated/sessions/$id'
+      path: '/sessions/$id'
+      fullPath: '/sessions/$id'
+      preLoaderRoute: typeof AuthenticatedSessionsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSessionsIdRoute: typeof AuthenticatedSessionsIdRoute
+  AuthenticatedSessionsIndexRoute: typeof AuthenticatedSessionsIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAnalyticsRoute: AuthenticatedAnalyticsRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSessionsIdRoute: AuthenticatedSessionsIdRoute,
+  AuthenticatedSessionsIndexRoute: AuthenticatedSessionsIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CTokenRoute: CTokenRoute,
   CheckoutSessionIdCardsRoute: CheckoutSessionIdCardsRoute,

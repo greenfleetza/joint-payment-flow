@@ -9,7 +9,7 @@ import { formatMoney } from "@/lib/format";
 import { demoSessions } from "@/lib/demo-dashboard";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/sessions")({
+export const Route = createFileRoute("/_authenticated/sessions/")({
   head: () => ({
     meta: [
       { title: "Sessions — ZakaPay" },
