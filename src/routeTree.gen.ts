@@ -9,38 +9,183 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CTokenRouteImport } from './routes/c.$token'
+import { Route as CheckoutSessionIdIndexRouteImport } from './routes/checkout.$sessionId.index'
+import { Route as CheckoutSessionIdStatusRouteImport } from './routes/checkout.$sessionId.status'
+import { Route as CheckoutSessionIdProcessingRouteImport } from './routes/checkout.$sessionId.processing'
+import { Route as CheckoutSessionIdPayRouteImport } from './routes/checkout.$sessionId.pay'
+import { Route as CheckoutSessionIdInvitedRouteImport } from './routes/checkout.$sessionId.invited'
+import { Route as CheckoutSessionIdContributorsRouteImport } from './routes/checkout.$sessionId.contributors'
+import { Route as CheckoutSessionIdCompleteRouteImport } from './routes/checkout.$sessionId.complete'
+import { Route as CheckoutSessionIdCardsRouteImport } from './routes/checkout.$sessionId.cards'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CTokenRoute = CTokenRouteImport.update({
+  id: '/c/$token',
+  path: '/c/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutSessionIdIndexRoute = CheckoutSessionIdIndexRouteImport.update({
+  id: '/checkout/$sessionId/',
+  path: '/checkout/$sessionId/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutSessionIdStatusRoute = CheckoutSessionIdStatusRouteImport.update({
+  id: '/checkout/$sessionId/status',
+  path: '/checkout/$sessionId/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutSessionIdProcessingRoute =
+  CheckoutSessionIdProcessingRouteImport.update({
+    id: '/checkout/$sessionId/processing',
+    path: '/checkout/$sessionId/processing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CheckoutSessionIdPayRoute = CheckoutSessionIdPayRouteImport.update({
+  id: '/checkout/$sessionId/pay',
+  path: '/checkout/$sessionId/pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutSessionIdInvitedRoute =
+  CheckoutSessionIdInvitedRouteImport.update({
+    id: '/checkout/$sessionId/invited',
+    path: '/checkout/$sessionId/invited',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CheckoutSessionIdContributorsRoute =
+  CheckoutSessionIdContributorsRouteImport.update({
+    id: '/checkout/$sessionId/contributors',
+    path: '/checkout/$sessionId/contributors',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CheckoutSessionIdCompleteRoute =
+  CheckoutSessionIdCompleteRouteImport.update({
+    id: '/checkout/$sessionId/complete',
+    path: '/checkout/$sessionId/complete',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CheckoutSessionIdCardsRoute = CheckoutSessionIdCardsRouteImport.update({
+  id: '/checkout/$sessionId/cards',
+  path: '/checkout/$sessionId/cards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/c/$token': typeof CTokenRoute
+  '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
+  '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
+  '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
+  '/checkout/$sessionId/invited': typeof CheckoutSessionIdInvitedRoute
+  '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
+  '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
+  '/checkout/$sessionId/status': typeof CheckoutSessionIdStatusRoute
+  '/checkout/$sessionId/': typeof CheckoutSessionIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/c/$token': typeof CTokenRoute
+  '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
+  '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
+  '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
+  '/checkout/$sessionId/invited': typeof CheckoutSessionIdInvitedRoute
+  '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
+  '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
+  '/checkout/$sessionId/status': typeof CheckoutSessionIdStatusRoute
+  '/checkout/$sessionId': typeof CheckoutSessionIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/c/$token': typeof CTokenRoute
+  '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
+  '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
+  '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
+  '/checkout/$sessionId/invited': typeof CheckoutSessionIdInvitedRoute
+  '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
+  '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
+  '/checkout/$sessionId/status': typeof CheckoutSessionIdStatusRoute
+  '/checkout/$sessionId/': typeof CheckoutSessionIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/c/$token'
+    | '/checkout/$sessionId/cards'
+    | '/checkout/$sessionId/complete'
+    | '/checkout/$sessionId/contributors'
+    | '/checkout/$sessionId/invited'
+    | '/checkout/$sessionId/pay'
+    | '/checkout/$sessionId/processing'
+    | '/checkout/$sessionId/status'
+    | '/checkout/$sessionId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/c/$token'
+    | '/checkout/$sessionId/cards'
+    | '/checkout/$sessionId/complete'
+    | '/checkout/$sessionId/contributors'
+    | '/checkout/$sessionId/invited'
+    | '/checkout/$sessionId/pay'
+    | '/checkout/$sessionId/processing'
+    | '/checkout/$sessionId/status'
+    | '/checkout/$sessionId'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/c/$token'
+    | '/checkout/$sessionId/cards'
+    | '/checkout/$sessionId/complete'
+    | '/checkout/$sessionId/contributors'
+    | '/checkout/$sessionId/invited'
+    | '/checkout/$sessionId/pay'
+    | '/checkout/$sessionId/processing'
+    | '/checkout/$sessionId/status'
+    | '/checkout/$sessionId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
+  CTokenRoute: typeof CTokenRoute
+  CheckoutSessionIdCardsRoute: typeof CheckoutSessionIdCardsRoute
+  CheckoutSessionIdCompleteRoute: typeof CheckoutSessionIdCompleteRoute
+  CheckoutSessionIdContributorsRoute: typeof CheckoutSessionIdContributorsRoute
+  CheckoutSessionIdInvitedRoute: typeof CheckoutSessionIdInvitedRoute
+  CheckoutSessionIdPayRoute: typeof CheckoutSessionIdPayRoute
+  CheckoutSessionIdProcessingRoute: typeof CheckoutSessionIdProcessingRoute
+  CheckoutSessionIdStatusRoute: typeof CheckoutSessionIdStatusRoute
+  CheckoutSessionIdIndexRoute: typeof CheckoutSessionIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +193,84 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/c/$token': {
+      id: '/c/$token'
+      path: '/c/$token'
+      fullPath: '/c/$token'
+      preLoaderRoute: typeof CTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/': {
+      id: '/checkout/$sessionId/'
+      path: '/checkout/$sessionId'
+      fullPath: '/checkout/$sessionId/'
+      preLoaderRoute: typeof CheckoutSessionIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/status': {
+      id: '/checkout/$sessionId/status'
+      path: '/checkout/$sessionId/status'
+      fullPath: '/checkout/$sessionId/status'
+      preLoaderRoute: typeof CheckoutSessionIdStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/processing': {
+      id: '/checkout/$sessionId/processing'
+      path: '/checkout/$sessionId/processing'
+      fullPath: '/checkout/$sessionId/processing'
+      preLoaderRoute: typeof CheckoutSessionIdProcessingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/pay': {
+      id: '/checkout/$sessionId/pay'
+      path: '/checkout/$sessionId/pay'
+      fullPath: '/checkout/$sessionId/pay'
+      preLoaderRoute: typeof CheckoutSessionIdPayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/invited': {
+      id: '/checkout/$sessionId/invited'
+      path: '/checkout/$sessionId/invited'
+      fullPath: '/checkout/$sessionId/invited'
+      preLoaderRoute: typeof CheckoutSessionIdInvitedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/contributors': {
+      id: '/checkout/$sessionId/contributors'
+      path: '/checkout/$sessionId/contributors'
+      fullPath: '/checkout/$sessionId/contributors'
+      preLoaderRoute: typeof CheckoutSessionIdContributorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/complete': {
+      id: '/checkout/$sessionId/complete'
+      path: '/checkout/$sessionId/complete'
+      fullPath: '/checkout/$sessionId/complete'
+      preLoaderRoute: typeof CheckoutSessionIdCompleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/cards': {
+      id: '/checkout/$sessionId/cards'
+      path: '/checkout/$sessionId/cards'
+      fullPath: '/checkout/$sessionId/cards'
+      preLoaderRoute: typeof CheckoutSessionIdCardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  CTokenRoute: CTokenRoute,
+  CheckoutSessionIdCardsRoute: CheckoutSessionIdCardsRoute,
+  CheckoutSessionIdCompleteRoute: CheckoutSessionIdCompleteRoute,
+  CheckoutSessionIdContributorsRoute: CheckoutSessionIdContributorsRoute,
+  CheckoutSessionIdInvitedRoute: CheckoutSessionIdInvitedRoute,
+  CheckoutSessionIdPayRoute: CheckoutSessionIdPayRoute,
+  CheckoutSessionIdProcessingRoute: CheckoutSessionIdProcessingRoute,
+  CheckoutSessionIdStatusRoute: CheckoutSessionIdStatusRoute,
+  CheckoutSessionIdIndexRoute: CheckoutSessionIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
