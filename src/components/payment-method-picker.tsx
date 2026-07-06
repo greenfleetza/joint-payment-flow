@@ -5,7 +5,7 @@ import { Check, Pencil, Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import { spring } from "@/lib/motion";
-import type { DemoPaymentMethod } from "@/lib/demo-session";
+import type { TxMethod, MethodBrand } from "@/lib/tx-store";
 
 export interface MethodAllocation {
   id: string;
@@ -14,7 +14,7 @@ export interface MethodAllocation {
 }
 
 interface PaymentMethodPickerProps {
-  methods: DemoPaymentMethod[];
+  methods: TxMethod[];
   allocations: Record<string, MethodAllocation>;
   totalCents: number;
   currency?: string;
@@ -25,14 +25,16 @@ interface PaymentMethodPickerProps {
   onAddMethod?: () => void;
 }
 
-const BRAND_STYLES: Record<DemoPaymentMethod["brand"], { bg: string; label: string }> = {
+const BRAND_STYLES: Record<MethodBrand, { bg: string; label: string }> = {
   visa: { bg: "from-[#1a1f71] to-[#4b5fbd]", label: "VISA" },
   mastercard: { bg: "from-[#eb001b] to-[#f79e1b]", label: "MC" },
   amex: { bg: "from-[#2e77bb] to-[#0f4c8c]", label: "AMEX" },
   venmo: { bg: "from-[#3d95ce] to-[#008cff]", label: "V" },
   cashapp: { bg: "from-[#00c853] to-[#00e676]", label: "$" },
-  applepay: { bg: "from-neutral-800 to-neutral-950", label: "" },
+  applepay: { bg: "from-neutral-800 to-neutral-950", label: " Pay" },
+  googlepay: { bg: "from-white to-neutral-100", label: "G Pay" },
   paypal: { bg: "from-[#003087] to-[#009cde]", label: "PP" },
+  zelle: { bg: "from-[#6d1ed4] to-[#a020f0]", label: "Z" },
 };
 
 export function PaymentMethodPicker({

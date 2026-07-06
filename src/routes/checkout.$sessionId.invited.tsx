@@ -1,5 +1,5 @@
-// S03 Invitation Sent — confirms invites, shows delivery status, transaction link.
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+// S03 Invitation Sent — shows every contributor for this tx, edit dialog, split action row.
+import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { Copy, Check, Pencil, Mail } from "lucide-react";
 import { motion } from "framer-motion";
@@ -7,7 +7,8 @@ import { motion } from "framer-motion";
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
 import { CartSummary } from "@/components/cart-summary";
-import { demoSession, type DeliveryStatus } from "@/lib/demo-session";
+import { EditContributorDialog } from "@/components/edit-contributor-dialog";
+import { txStore, useTransaction } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { spring, tapScale } from "@/lib/motion";
@@ -23,27 +24,24 @@ export const Route = createFileRoute("/checkout/$sessionId/invited")({
   component: Invited,
 });
 
-const DELIVERY_STYLES: Record<DeliveryStatus, string> = {
-  read: "bg-[color:var(--success)]/15 text-[color:var(--success-foreground)]",
+const DELIVERY_STYLES: Record<string, string> = {
+  read: "bg-[color:var(--success)]/15 text-[color:var(--success)]",
   delivered: "bg-[color:var(--info)]/12 text-[color:var(--info)]",
   sent: "bg-secondary text-muted-foreground",
   undelivered: "bg-destructive/12 text-destructive",
 };
 
-const DELIVERY_LABEL: Record<DeliveryStatus, string> = {
-  read: "Read",
-  sent: "Sent",
-  delivered: "Delivered",
-  undelivered: "Undelivered",
-};
-
 function Invited() {
   const { sessionId } = useParams({ from: "/checkout/$sessionId/invited" });
+  const navigate = useNavigate();
+  const tx = useTransaction(sessionId);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+
   const shortUrl =
     typeof window !== "undefined"
-      ? `${window.location.host}/${demoSession.transactionCode}`
-      : `zaka.pay/${demoSession.transactionCode}`;
+      ? `${window.location.host}/c/${sessionId}`
+      : `zaka.pay/c/${sessionId}`;
 
   async function copyUrl() {
     try {
@@ -53,58 +51,67 @@ function Invited() {
     } catch {}
   }
 
+  const goStatus = () => navigate({ to: "/checkout/$sessionId/status", params: { sessionId } });
+  const goPay = () => navigate({ to: "/checkout/$sessionId/pay", params: { sessionId } });
+
+  const editingC = tx?.contributors.find((c) => c.id === editing);
+
   return (
     <CheckoutShell
-      merchantName={demoSession.merchantName}
-      merchantInitial={demoSession.merchantLogoInitial}
-      orderReference={demoSession.orderReference}
+      merchantName={tx?.merchantName ?? ""}
+      merchantInitial={tx?.merchantInitial ?? ""}
+      orderReference={tx?.orderReference}
       step={2}
       showClose
     >
       <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            to="/checkout/$sessionId/contributors"
-            params={{ sessionId }}
-            className="inline-flex items-center justify-center rounded-full border border-border bg-white/70 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
+        <div className="flex items-center justify-between">
+          <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Tx {sessionId}
+          </span>
+          <button
+            type="button"
+            onClick={copyUrl}
+            className="flex items-center gap-2 rounded-full border border-border bg-white/80 px-3 py-1.5 backdrop-blur-md transition-colors hover:bg-white"
           >
-            Payment Status
-          </Link>
-
-          <div className="flex flex-1 items-center gap-2 rounded-full border border-border bg-white/80 px-3 py-2 backdrop-blur-md">
-            <Mail className="h-3.5 w-3.5 flex-none text-muted-foreground" />
-            <span className="tabular min-w-0 flex-1 truncate text-xs font-medium text-foreground">
-              {shortUrl}
-            </span>
+            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="tabular text-xs font-medium">{shortUrl}</span>
             <motion.button
               type="button"
-              onClick={copyUrl}
+              onClick={(e) => { e.stopPropagation(); goStatus(); }}
               whileTap={tapScale}
               transition={spring}
-              aria-label="Copy transaction link"
-              className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1 text-[11px] font-semibold text-background"
+              className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--primary)]"
+              aria-label="Open status page"
             >
+              open →
+            </motion.button>
+            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold text-background">
               {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
               {copied ? "Copied" : "Copy"}
-            </motion.button>
-          </div>
-
-          <Link
-            to="/checkout/$sessionId/pay"
-            params={{ sessionId }}
-            className="inline-flex items-center justify-center rounded-full bg-foreground px-4 py-2 text-xs font-semibold uppercase tracking-wider text-background transition-transform active:scale-[0.97]"
-          >
-            Pay Your Share
-          </Link>
+            </span>
+          </button>
         </div>
 
-        <CartSummary
-          items={demoSession.items}
-          subtotalCents={demoSession.subtotalCents}
-          vatCents={demoSession.vatCents}
-          totalCents={demoSession.totalCents}
-          showCoupon={false}
-        />
+        {/* Split action row — half-size buttons, side by side */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={goStatus}
+            className="rounded-full border border-border bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
+          >
+            Payment Status
+          </button>
+          <button
+            type="button"
+            onClick={goPay}
+            className="rounded-full bg-foreground px-3 py-2 text-xs font-semibold uppercase tracking-wider text-background transition-transform active:scale-[0.97]"
+          >
+            Pay Your Share
+          </button>
+        </div>
+
+        <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={tx?.totalCents ?? 0} showCoupon={false} />
 
         <GlassCard variant="strong" padding="lg" className="flex flex-col gap-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
@@ -112,16 +119,14 @@ function Invited() {
           </p>
 
           <div className="flex flex-col gap-2">
-            {demoSession.contributors.map((c) => {
-              const delivery: DeliveryStatus = c.isInitiator ? "read" : c.delivery ?? "sent";
+            {tx?.contributors.map((c) => {
+              const delivery = c.isInitiator ? "read" : c.delivery;
               return (
                 <div
                   key={c.id}
                   className={cn(
                     "flex items-center gap-3 rounded-2xl border p-3 backdrop-blur-md",
-                    c.isInitiator
-                      ? "border-[color:var(--primary)]/30 bg-[color:var(--primary)]/5"
-                      : "border-border/60 bg-card/70",
+                    c.isInitiator ? "border-[color:var(--primary)]/30 bg-[color:var(--primary)]/5" : "border-border/60 bg-card/70",
                   )}
                 >
                   <div
@@ -134,27 +139,21 @@ function Invited() {
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium">{c.name}</p>
                       {c.isInitiator && (
-                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Host
-                        </span>
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Host</span>
                       )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{c.email}</p>
                   </div>
                   <div className="flex flex-none flex-col items-end gap-1.5">
                     <span className="tabular text-sm font-semibold">{formatMoney(c.shareCents)}</span>
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
-                        DELIVERY_STYLES[delivery],
-                      )}
-                    >
-                      {DELIVERY_LABEL[delivery]}
+                    <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", DELIVERY_STYLES[delivery])}>
+                      {delivery}
                     </span>
                   </div>
                   {!c.isInitiator && (
                     <button
                       type="button"
+                      onClick={() => setEditing(c.id)}
                       aria-label={`Edit ${c.name}`}
                       className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     >
@@ -167,9 +166,21 @@ function Invited() {
           </div>
 
           <p className="text-center text-[11px] text-muted-foreground">
-            Invitations expire in 1 hour. Contributors can pay from any device — no account needed.
+            Invitations expire in 7 days. Contributors can pay from any device — no account needed.
           </p>
         </GlassCard>
+
+        <EditContributorDialog
+          open={!!editingC}
+          name={editingC?.name ?? ""}
+          email={editingC?.email ?? ""}
+          shareCents={editingC?.shareCents ?? 0}
+          onCancel={() => setEditing(null)}
+          onSave={(name, email) => {
+            if (editingC) txStore.patchContributor(sessionId, editingC.id, { name, email });
+            setEditing(null);
+          }}
+        />
       </div>
     </CheckoutShell>
   );

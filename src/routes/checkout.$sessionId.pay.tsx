@@ -1,17 +1,15 @@
-// S04 Pay Your Share — initiator payment with multi-method picker.
+// S04 Pay Your Share — initiator payment. Uses PaymentMethodSheet for add-method flow.
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Loader2, Lock, ArrowLeft } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Lock, ArrowLeft } from "lucide-react";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
 import { AmountDisplay } from "@/components/amount-display";
 import { CartSummary } from "@/components/cart-summary";
-import {
-  PaymentMethodPicker,
-  type MethodAllocation,
-} from "@/components/payment-method-picker";
-import { demoSession } from "@/lib/demo-session";
+import { PaymentMethodPicker, type MethodAllocation } from "@/components/payment-method-picker";
+import { PaymentMethodSheet } from "@/components/payment-method-sheet";
+import { txStore, useTransaction } from "@/lib/tx-store";
 
 export const Route = createFileRoute("/checkout/$sessionId/pay")({
   head: () => ({
@@ -27,28 +25,35 @@ export const Route = createFileRoute("/checkout/$sessionId/pay")({
 function PayShare() {
   const { sessionId } = useParams({ from: "/checkout/$sessionId/pay" });
   const navigate = useNavigate();
-  const initiator = demoSession.contributors.find((c) => c.isInitiator)!;
-  const share = initiator.shareCents;
-  const [processing, setProcessing] = useState(false);
+  useEffect(() => { txStore.ensure(sessionId, "contributor"); }, [sessionId]);
+  const tx = useTransaction(sessionId);
+  const initiator = tx?.contributors.find((c) => c.isInitiator);
+  const share = initiator?.shareCents ?? tx?.totalCents ?? 0;
 
-  const [methods, setMethods] = useState(demoSession.paymentMethods);
-  const [allocations, setAllocations] = useState<Record<string, MethodAllocation>>(() => {
-    const map: Record<string, MethodAllocation> = {};
-    demoSession.paymentMethods.forEach((m, i) => {
-      map[m.id] = { id: m.id, amountCents: i === 0 ? share : 0, selected: i === 0 };
-    });
-    return map;
-  });
+  // Which method IDs are currently selected for allocation (from the sheet).
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [allocations, setAllocations] = useState<Record<string, MethodAllocation>>({});
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Initialize: pre-select the first method with the full share
+  useEffect(() => {
+    if (!tx || selectedIds.length > 0) return;
+    const first = tx.methods[0];
+    if (!first) return;
+    setSelectedIds([first.id]);
+    setAllocations({ [first.id]: { id: first.id, amountCents: share, selected: true } });
+  }, [tx, share, selectedIds.length]);
+
+  const activeMethods = useMemo(
+    () => (tx?.methods ?? []).filter((m) => selectedIds.includes(m.id)),
+    [tx, selectedIds],
+  );
 
   const allocated = useMemo(
-    () =>
-      methods.reduce((acc, m) => {
-        const a = allocations[m.id];
-        return acc + (a?.selected ? a.amountCents : 0);
-      }, 0),
-    [methods, allocations],
+    () => activeMethods.reduce((acc, m) => acc + (allocations[m.id]?.selected ? allocations[m.id].amountCents : 0), 0),
+    [activeMethods, allocations],
   );
-  const canPay = allocated === share && methods.some((m) => allocations[m.id]?.selected);
+  const canPay = allocated === share && activeMethods.some((m) => allocations[m.id]?.selected);
 
   function toggle(id: string) {
     setAllocations((prev) => {
@@ -60,84 +65,81 @@ function PayShare() {
     setAllocations((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { id, selected: true, amountCents: 0 }), amountCents: cents } }));
   }
   function removeMethod(id: string) {
-    setMethods((v) => v.filter((m) => m.id !== id));
-    setAllocations((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
+    setSelectedIds((v) => v.filter((x) => x !== id));
+    setAllocations((prev) => { const n = { ...prev }; delete n[id]; return n; });
   }
   function splitEvenly() {
-    const selectedIds = methods.filter((m) => allocations[m.id]?.selected).map((m) => m.id);
-    if (selectedIds.length === 0) return;
-    const per = Math.floor(share / selectedIds.length);
-    const rest = share - per * selectedIds.length;
+    const sel = activeMethods.filter((m) => allocations[m.id]?.selected);
+    if (sel.length === 0) return;
+    const per = Math.floor(share / sel.length);
+    const rest = share - per * sel.length;
     setAllocations((prev) => {
-      const next = { ...prev };
-      selectedIds.forEach((id, i) => {
-        next[id] = { ...(next[id] ?? { id, selected: true, amountCents: 0 }), selected: true, amountCents: per + (i === 0 ? rest : 0) };
+      const n = { ...prev };
+      sel.forEach((m, i) => {
+        n[m.id] = { id: m.id, selected: true, amountCents: per + (i === 0 ? rest : 0) };
       });
-      return next;
+      return n;
     });
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canPay) return;
-    setProcessing(true);
-    setTimeout(() => navigate({ to: "/checkout/$sessionId/status", params: { sessionId } }), 1400);
+    if (!canPay || !tx || !initiator) return;
+    // Persist host allocations onto initiator contributor
+    const allocs = activeMethods
+      .filter((m) => allocations[m.id]?.selected)
+      .map((m) => ({ methodId: m.id, amountCents: allocations[m.id].amountCents }));
+    txStore.patchContributor(sessionId, initiator.id, { allocations: allocs });
+    txStore.setHostAllocations(sessionId, allocs);
+    navigate({ to: "/checkout/$sessionId/processing", params: { sessionId } });
   }
 
   return (
     <CheckoutShell
-      merchantName={demoSession.merchantName}
-      merchantInitial={demoSession.merchantLogoInitial}
-      orderReference={demoSession.orderReference}
+      merchantName={tx?.merchantName ?? ""}
+      merchantInitial={tx?.merchantInitial ?? ""}
+      orderReference={tx?.orderReference}
       step={3}
       showClose
     >
       <form onSubmit={submit} className="flex flex-col gap-5">
-        <CartSummary
-          items={demoSession.items}
-          subtotalCents={demoSession.subtotalCents}
-          vatCents={demoSession.vatCents}
-          totalCents={demoSession.totalCents}
-        />
+        <div className="flex items-center justify-between">
+          <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Tx {sessionId}
+          </span>
+        </div>
+
+        <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={tx?.totalCents ?? 0} />
 
         <GlassCard variant="strong" padding="lg" className="flex flex-col gap-6">
           <div className="flex items-end justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
-                Your share
-              </span>
-              <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Pay Your Share</h1>
-            </div>
-            <AmountDisplay amountCents={share} size="md" label="You pay" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
+              Your share
+            </span>
+            <AmountDisplay amountCents={share} size="md" />
           </div>
 
           <PaymentMethodPicker
-            methods={methods}
+            methods={activeMethods}
             allocations={allocations}
             totalCents={share}
             onToggle={toggle}
             onAmountChange={setAmount}
             onRemove={removeMethod}
             onSplitEvenly={splitEvenly}
-            onAddMethod={() => {
-              /* stub — real flow opens add-method sheet */
-            }}
+            onAddMethod={() => setSheetOpen(true)}
           />
 
           <button
             type="submit"
-            disabled={!canPay || processing}
+            disabled={!canPay}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
           >
-            {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-            {processing ? "Processing…" : `Pay Your Share ($${(share / 100).toFixed(2)})`}
+            <Lock className="h-4 w-4" />
+            Pay Your Share (${(share / 100).toFixed(2)})
           </button>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <Link
               to="/checkout/$sessionId/invited"
               params={{ sessionId }}
@@ -145,12 +147,30 @@ function PayShare() {
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </Link>
-            <p className="text-[11px] text-muted-foreground">
-              Charged only when every contributor has paid.
-            </p>
           </div>
         </GlassCard>
       </form>
+
+      <PaymentMethodSheet
+        open={sheetOpen}
+        title="Choose a payment method"
+        methods={tx?.methods ?? []}
+        initiallySelected={selectedIds}
+        onCancel={() => setSheetOpen(false)}
+        onAddMethod={(m) => txStore.addMethod(sessionId, m)}
+        onDone={(ids) => {
+          setSelectedIds(ids);
+          setAllocations((prev) => {
+            const n: Record<string, MethodAllocation> = {};
+            ids.forEach((id) => {
+              n[id] = prev[id] ?? { id, selected: true, amountCents: 0 };
+              n[id].selected = true;
+            });
+            return n;
+          });
+          setSheetOpen(false);
+        }}
+      />
     </CheckoutShell>
   );
 }

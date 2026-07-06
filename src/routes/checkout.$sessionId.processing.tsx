@@ -1,95 +1,120 @@
-// S08 Payment Processing — sequential authorization visualization
+// S08 Processing — sequentially animate each allocated method, then route by tx kind.
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { CreditCard, Check, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
-import { StepHeader } from "@/components/step-header";
+import { ProcessingCard } from "@/components/processing-card";
 import { AmountDisplay } from "@/components/amount-display";
-import { demoSession } from "@/lib/demo-session";
-import { formatMoney } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { txStore, useTransaction, type TxAllocation, type TxMethod } from "@/lib/tx-store";
 
 export const Route = createFileRoute("/checkout/$sessionId/processing")({
   head: () => ({
     meta: [
       { title: "Processing — ZakaPay" },
-      { name: "description", content: "Authorizing your cards." },
+      { name: "description", content: "Authorizing your payment methods." },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: Processing,
 });
 
-const demoCards = [
-  { id: "c1", label: "Debit ending 4321", amountCents: 12450 },
-  { id: "c2", label: "Credit ending 8890", amountCents: 12450 },
-];
+const PER_STEP_MS = 1600;
+const FINAL_WAIT_MS = 5000;
 
 function Processing() {
   const { sessionId } = useParams({ from: "/checkout/$sessionId/processing" });
   const navigate = useNavigate();
+  const tx = useTransaction(sessionId);
   const [idx, setIdx] = useState(0);
 
+  const items = useMemo(() => {
+    if (!tx) return [] as { method: TxMethod; amountCents: number }[];
+    return tx.hostAllocations
+      .map((a: TxAllocation) => {
+        const method = tx.methods.find((m) => m.id === a.methodId);
+        return method ? { method, amountCents: a.amountCents } : null;
+      })
+      .filter(Boolean) as { method: TxMethod; amountCents: number }[];
+  }, [tx]);
+
   useEffect(() => {
-    if (idx >= demoCards.length) {
-      const t = setTimeout(() => navigate({ to: "/checkout/$sessionId/complete", params: { sessionId } }), 900);
+    if (!tx || items.length === 0) return;
+    if (idx < items.length) {
+      const t = setTimeout(() => setIdx((i) => i + 1), PER_STEP_MS);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setIdx((i) => i + 1), 1400);
+    // All done. Wait, then route by tx.kind.
+    const t = setTimeout(() => {
+      // Mark initiator paid if contributor kind
+      if (tx.kind === "contributor") {
+        const host = tx.contributors.find((c) => c.isInitiator);
+        if (host) txStore.patchContributor(sessionId, host.id, { status: "paid", allocations: tx.hostAllocations });
+        const latest = txStore.get(sessionId);
+        const allPaid = latest?.contributors.every((c) => c.status === "paid");
+        navigate({
+          to: allPaid ? "/checkout/$sessionId/complete" : "/checkout/$sessionId/status",
+          params: { sessionId },
+        });
+      } else {
+        navigate({ to: "/checkout/$sessionId/complete", params: { sessionId } });
+      }
+    }, FINAL_WAIT_MS);
     return () => clearTimeout(t);
-  }, [idx, navigate, sessionId]);
+  }, [idx, items.length, tx, sessionId, navigate]);
+
+  const total = tx?.totalCents ?? 0;
+  const shareTotal = items.reduce((a, b) => a + b.amountCents, 0);
+  const current = items[Math.min(idx, items.length - 1)];
 
   return (
     <CheckoutShell
-      merchantName={demoSession.merchantName}
-      merchantInitial={demoSession.merchantLogoInitial}
-      orderReference={demoSession.orderReference}
-      step={3}
+      merchantName={tx?.merchantName ?? ""}
+      merchantInitial={tx?.merchantInitial ?? ""}
+      orderReference={tx?.orderReference}
+      showStepBar={false}
     >
-      <GlassCard variant="strong" padding="lg" className="flex flex-col gap-7">
-        <StepHeader
-          eyebrow="Authorizing"
-          title="Processing your payment"
-          description="Each card is authorized in sequence, then captured together as a single successful payment."
-        />
-        <div className="flex justify-center">
-          <AmountDisplay amountCents={demoSession.totalCents} size="xl" tone="muted" label="Total" />
+      <GlassCard variant="strong" padding="lg" className="flex flex-col gap-8">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
+            {tx?.kind === "multi_card" ? "Processing methods" : "Processing your share"}
+          </span>
+          <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Tx {sessionId}
+          </span>
         </div>
-        <ol className="flex flex-col gap-2">
-          {demoCards.map((c, i) => {
+
+        <div className="flex flex-col items-center gap-2">
+          <AmountDisplay amountCents={tx?.kind === "multi_card" ? total : shareTotal} size="lg" tone="muted" label={tx?.kind === "multi_card" ? "Order total" : "Your share"} />
+          <p className="text-xs text-muted-foreground">
+            {idx < items.length ? `Method ${idx + 1} of ${items.length}` : "Finalizing…"}
+          </p>
+        </div>
+
+        {current && (
+          <ProcessingCard
+            key={current.method.id}
+            method={current.method}
+            amountCents={current.amountCents}
+            state={idx < items.length ? "active" : "done"}
+          />
+        )}
+
+        <ol className="flex flex-col gap-1.5">
+          {items.map((it, i) => {
             const state = i < idx ? "done" : i === idx ? "active" : "pending";
             return (
-              <motion.li
-                key={c.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={cn(
-                  "flex items-center gap-3 rounded-2xl border border-border/60 bg-card/70 p-3.5 backdrop-blur-md",
-                  state === "active" && "border-[color:var(--primary)]/50",
-                )}
+              <li
+                key={it.method.id}
+                className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs ${
+                  state === "done" ? "bg-[color:var(--success)]/10 text-[color:var(--success)]"
+                  : state === "active" ? "bg-[color:var(--primary)]/10 text-[color:var(--primary)]"
+                  : "bg-secondary/60 text-muted-foreground"
+                }`}
               >
-                <span
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl",
-                    state === "done" && "bg-[color:var(--success)]/15 text-[color:var(--success)]",
-                    state === "active" && "bg-[color:var(--primary)]/12 text-[color:var(--primary)]",
-                    state === "pending" && "bg-secondary text-muted-foreground",
-                  )}
-                >
-                  {state === "done" ? <Check className="h-4 w-4" /> : state === "active" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{c.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {state === "done" ? "Authorized" : state === "active" ? "Authorizing…" : "Waiting"}
-                  </p>
-                </div>
-                <span className="tabular text-sm font-semibold">{formatMoney(c.amountCents)}</span>
-              </motion.li>
+                <span className="font-medium">{it.method.label}</span>
+                <span className="tabular">${(it.amountCents / 100).toFixed(2)} · {state}</span>
+              </li>
             );
           })}
         </ol>
