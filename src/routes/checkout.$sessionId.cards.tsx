@@ -1,16 +1,15 @@
-// S07 Multi-Card Setup
+// S07 Multi-Card Setup — spread the whole total across selected cards/wallets.
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Plus, X, CreditCard } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
-import { StepHeader } from "@/components/step-header";
+import { CartSummary } from "@/components/cart-summary";
+import { PaymentMethodPicker, type MethodAllocation } from "@/components/payment-method-picker";
+import { PaymentMethodSheet } from "@/components/payment-method-sheet";
 import { AmountDisplay } from "@/components/amount-display";
-import { demoSession } from "@/lib/demo-session";
-import { formatMoney } from "@/lib/format";
-import { spring } from "@/lib/motion";
+import { txStore, useTransaction } from "@/lib/tx-store";
 
 export const Route = createFileRoute("/checkout/$sessionId/cards")({
   head: () => ({
@@ -23,129 +22,148 @@ export const Route = createFileRoute("/checkout/$sessionId/cards")({
   component: MultiCardSetup,
 });
 
-interface Alloc { id: string; label: string; last4: string; amountCents: number }
-
 function MultiCardSetup() {
   const { sessionId } = useParams({ from: "/checkout/$sessionId/cards" });
   const navigate = useNavigate();
-  const total = demoSession.totalCents;
-  const [allocs, setAllocs] = useState<Alloc[]>([
-    { id: "c1", label: "Debit ending", last4: "4321", amountCents: Math.floor(total / 2) },
-    { id: "c2", label: "Credit ending", last4: "8890", amountCents: total - Math.floor(total / 2) },
-  ]);
+  useEffect(() => { txStore.ensure(sessionId, "multi_card"); }, [sessionId]);
+  const tx = useTransaction(sessionId);
+  const total = tx?.totalCents ?? 0;
 
-  const allocated = useMemo(() => allocs.reduce((a, b) => a + b.amountCents, 0), [allocs]);
-  const remaining = total - allocated;
-  const valid = remaining === 0 && allocs.length >= 2 && allocs.every((a) => a.amountCents > 0 && a.last4.length === 4);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [allocations, setAllocations] = useState<Record<string, MethodAllocation>>({});
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!tx || selectedIds.length > 0) return;
+    const first = tx.methods.slice(0, 2);
+    if (first.length === 0) return;
+    const per = Math.floor(total / first.length);
+    const rest = total - per * first.length;
+    setSelectedIds(first.map((m) => m.id));
+    setAllocations(Object.fromEntries(first.map((m, i) => [m.id, { id: m.id, selected: true, amountCents: per + (i === 0 ? rest : 0) }])));
+  }, [tx, total, selectedIds.length]);
+
+  const activeMethods = useMemo(
+    () => (tx?.methods ?? []).filter((m) => selectedIds.includes(m.id)),
+    [tx, selectedIds],
+  );
+  const allocated = useMemo(
+    () => activeMethods.reduce((acc, m) => acc + (allocations[m.id]?.selected ? allocations[m.id].amountCents : 0), 0),
+    [activeMethods, allocations],
+  );
+  const canPay = allocated === total && activeMethods.length >= 1;
+
+  function toggle(id: string) {
+    setAllocations((prev) => {
+      const cur = prev[id] ?? { id, amountCents: 0, selected: false };
+      return { ...prev, [id]: { ...cur, selected: !cur.selected, amountCents: cur.selected ? 0 : cur.amountCents } };
+    });
+  }
+  function setAmount(id: string, cents: number) {
+    setAllocations((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { id, selected: true, amountCents: 0 }), amountCents: cents } }));
+  }
+  function removeMethod(id: string) {
+    setSelectedIds((v) => v.filter((x) => x !== id));
+    setAllocations((prev) => { const n = { ...prev }; delete n[id]; return n; });
+  }
+  function splitEvenly() {
+    const sel = activeMethods.filter((m) => allocations[m.id]?.selected);
+    if (sel.length === 0) return;
+    const per = Math.floor(total / sel.length);
+    const rest = total - per * sel.length;
+    setAllocations((prev) => {
+      const n = { ...prev };
+      sel.forEach((m, i) => { n[m.id] = { id: m.id, selected: true, amountCents: per + (i === 0 ? rest : 0) }; });
+      return n;
+    });
+  }
+
+  function submit() {
+    if (!canPay) return;
+    const allocs = activeMethods
+      .filter((m) => allocations[m.id]?.selected)
+      .map((m) => ({ methodId: m.id, amountCents: allocations[m.id].amountCents }));
+    txStore.setHostAllocations(sessionId, allocs);
+    navigate({ to: "/checkout/$sessionId/processing", params: { sessionId } });
+  }
 
   return (
     <CheckoutShell
-      merchantName={demoSession.merchantName}
-      merchantInitial={demoSession.merchantLogoInitial}
-      orderReference={demoSession.orderReference}
+      merchantName={tx?.merchantName ?? ""}
+      merchantInitial={tx?.merchantInitial ?? ""}
+      orderReference={tx?.orderReference}
       step={2}
+      showClose
     >
-      <GlassCard variant="strong" padding="lg" className="flex flex-col gap-7">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <StepHeader
-            eyebrow="Multi-Card Split"
-            title="Distribute across your cards"
-            description="Add at least two cards. Charges are authorized sequentially and captured atomically."
-          />
-          <div className="flex items-end gap-6">
-            <AmountDisplay amountCents={total} size="md" label="Total" />
-            <AmountDisplay amountCents={remaining} size="md" label="Remaining" tone={remaining === 0 ? "success" : "muted"} />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <AnimatePresence initial={false}>
-            {allocs.map((a, idx) => (
-              <motion.div
-                key={a.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={spring}
-                className="grid grid-cols-1 items-center gap-2 rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-md md:grid-cols-[auto_1fr_120px_150px_auto]"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-foreground">
-                  <CreditCard className="h-4 w-4" />
-                </div>
-                <input
-                  aria-label="Card label"
-                  value={a.label}
-                  onChange={(e) => setAllocs((v) => v.map((x) => (x.id === a.id ? { ...x, label: e.target.value } : x)))}
-                  placeholder="Card label"
-                  className="rounded-xl bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <input
-                  aria-label="Last 4 digits"
-                  value={a.last4}
-                  maxLength={4}
-                  inputMode="numeric"
-                  onChange={(e) => setAllocs((v) => v.map((x) => (x.id === a.id ? { ...x, last4: e.target.value.replace(/\D/g, "") } : x)))}
-                  placeholder="Last 4"
-                  className="tabular rounded-xl bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <input
-                  aria-label="Amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={(a.amountCents / 100).toFixed(2)}
-                  onChange={(e) => setAllocs((v) => v.map((x) => (x.id === a.id ? { ...x, amountCents: Math.max(0, Math.round(parseFloat(e.target.value || "0") * 100)) } : x)))}
-                  className="tabular rounded-xl bg-transparent px-3 py-2 text-right text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-                <button
-                  type="button"
-                  onClick={() => setAllocs((v) => v.filter((x) => x.id !== a.id))}
-                  aria-label="Remove card"
-                  disabled={allocs.length <= 2}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-40"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setAllocs((v) => [
-                  ...v,
-                  { id: `c${Date.now()}`, label: "Card ending", last4: "", amountCents: Math.max(remaining, 0) },
-                ])
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/70 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md transition-colors hover:bg-white"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add card
-            </button>
-            {remaining !== 0 && (
-              <span className="text-xs text-muted-foreground">
-                {remaining > 0 ? `${formatMoney(remaining)} to allocate.` : `Over by ${formatMoney(Math.abs(remaining))}.`}
-              </span>
-            )}
-          </div>
-        </div>
-
+      <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
-          <Link to="/checkout/$sessionId" params={{ sessionId }} className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-            Back
-          </Link>
+          <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Tx {sessionId}
+          </span>
+        </div>
+
+        <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={total} />
+
+        <GlassCard variant="strong" padding="lg" className="flex flex-col gap-6">
+          <div className="flex items-end justify-between gap-4">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
+              Total to allocate
+            </span>
+            <AmountDisplay amountCents={total} size="md" />
+          </div>
+
+          <PaymentMethodPicker
+            methods={activeMethods}
+            allocations={allocations}
+            totalCents={total}
+            onToggle={toggle}
+            onAmountChange={setAmount}
+            onRemove={removeMethod}
+            onSplitEvenly={splitEvenly}
+            onAddMethod={() => setSheetOpen(true)}
+          />
+
           <button
             type="button"
-            disabled={!valid}
-            onClick={() => navigate({ to: "/checkout/$sessionId/processing", params: { sessionId } })}
-            className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-transform active:scale-[0.97] disabled:opacity-40"
+            disabled={!canPay}
+            onClick={submit}
+            className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
           >
-            Authorize cards
+            Pay (${(total / 100).toFixed(2)})
           </button>
-        </div>
-      </GlassCard>
+
+          <div className="flex items-center">
+            <Link
+              to="/checkout/$sessionId"
+              params={{ sessionId }}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Link>
+          </div>
+        </GlassCard>
+      </div>
+
+      <PaymentMethodSheet
+        open={sheetOpen}
+        title="Choose payment methods"
+        methods={tx?.methods ?? []}
+        initiallySelected={selectedIds}
+        onCancel={() => setSheetOpen(false)}
+        onAddMethod={(m) => txStore.addMethod(sessionId, m)}
+        onDone={(ids) => {
+          setSelectedIds(ids);
+          setAllocations((prev) => {
+            const n: Record<string, MethodAllocation> = {};
+            ids.forEach((id) => {
+              n[id] = prev[id] ?? { id, selected: true, amountCents: 0 };
+              n[id].selected = true;
+            });
+            return n;
+          });
+          setSheetOpen(false);
+        }}
+      />
     </CheckoutShell>
   );
 }

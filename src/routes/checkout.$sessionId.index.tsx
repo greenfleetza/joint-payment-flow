@@ -1,11 +1,13 @@
-// Checkout entry — S01 Split Method Selection.
+// Checkout entry — S01 Split Method Selection. Creates a Transaction and redirects.
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
 import { CartSummary } from "@/components/cart-summary";
 import { demoSession } from "@/lib/demo-session";
+import { txStore, useTransaction } from "@/lib/tx-store";
 import { spring, tapScale } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -26,12 +28,23 @@ export const Route = createFileRoute("/checkout/$sessionId/")({
 function SplitMethod() {
   const { sessionId } = useParams({ from: "/checkout/$sessionId/" });
   const navigate = useNavigate();
+  const tx = useTransaction(sessionId);
 
-  const go = (method: "contributor" | "multi_card") =>
+  // If URL sessionId is neither an existing tx nor prefixed correctly, that's fine —
+  // user just picks a kind and we create a fresh tx below.
+  useEffect(() => {
+    if (!tx && sessionId && (sessionId.startsWith("C") || sessionId.startsWith("M"))) {
+      txStore.ensure(sessionId, sessionId.startsWith("M") ? "multi_card" : "contributor");
+    }
+  }, [tx, sessionId]);
+
+  const go = (kind: "contributor" | "multi_card") => {
+    const t = txStore.create(kind);
     navigate({
-      to: method === "multi_card" ? "/checkout/$sessionId/cards" : "/checkout/$sessionId/contributors",
-      params: { sessionId },
+      to: kind === "multi_card" ? "/checkout/$sessionId/cards" : "/checkout/$sessionId/contributors",
+      params: { sessionId: t.id },
     });
+  };
 
   return (
     <CheckoutShell
@@ -60,18 +73,8 @@ function SplitMethod() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <MethodTile
-              title="Split with Others"
-              description="Invite friends, family or teammates to fund portions."
-              image={splitPeople}
-              onSelect={() => go("contributor")}
-            />
-            <MethodTile
-              title="Split across Cards"
-              description="One buyer, multiple cards & wallets."
-              image={splitCards}
-              onSelect={() => go("multi_card")}
-            />
+            <MethodTile title="Split with Others" description="Invite friends, family or teammates to fund portions." image={splitPeople} onSelect={() => go("contributor")} />
+            <MethodTile title="Split across Cards" description="One buyer, multiple cards & wallets." image={splitCards} onSelect={() => go("multi_card")} />
           </div>
         </GlassCard>
       </div>
@@ -79,17 +82,7 @@ function SplitMethod() {
   );
 }
 
-function MethodTile({
-  title,
-  description,
-  image,
-  onSelect,
-}: {
-  title: string;
-  description: string;
-  image: string;
-  onSelect: () => void;
-}) {
+function MethodTile({ title, description, image, onSelect }: { title: string; description: string; image: string; onSelect: () => void }) {
   return (
     <motion.button
       type="button"
@@ -103,12 +96,7 @@ function MethodTile({
       )}
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-secondary">
-        <img
-          src={image}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
+        <img src={image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
       </div>
       <div className="flex flex-col gap-1 px-4 py-3">
         <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
