@@ -12,6 +12,7 @@ import { useTransaction } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { downloadReceiptPdf } from "@/lib/receipt-pdf";
 
 export const Route = createFileRoute("/checkout/$sessionId/complete")({
   head: () => ({
