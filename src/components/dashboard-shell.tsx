@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { LayoutDashboard, ListChecks, BarChart3, Settings, LogOut, Sparkles, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth, useUser } from "@/integrations/clerk";
 import { AmbientBackground } from "@/components/ambient-background";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 const nav = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -18,17 +18,10 @@ const nav = [
 export function DashboardShell({ children }: { children?: React.ReactNode }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const [email, setEmail] = useState<string>("");
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
-  }, []);
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  }
+  const { signOut } = useAuth();
+  const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? "";
 
   return (
     <div className="relative min-h-screen">
@@ -67,7 +60,7 @@ export function DashboardShell({ children }: { children?: React.ReactNode }) {
               <p className="text-muted-foreground">Merchant</p>
             </div>
             <button
-              onClick={signOut}
+              onClick={() => signOut?.().then(() => navigate({ to: "/auth", replace: true }))}
               className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <LogOut className="h-4 w-4" /> Sign out
@@ -110,7 +103,7 @@ export function DashboardShell({ children }: { children?: React.ReactNode }) {
                   </Link>
                 );
               })}
-              <button onClick={signOut} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
+              <button onClick={() => signOut?.().then(() => navigate({ to: "/auth", replace: true }))} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
                 <LogOut className="h-4 w-4" /> Sign out
               </button>
             </motion.aside>

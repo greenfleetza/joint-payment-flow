@@ -1,12 +1,14 @@
 // Shared checkout shell: merchant header + step bar + optional close button.
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AmbientBackground } from "@/components/ambient-background";
 import { CloseConfirm } from "@/components/close-confirm";
 import { spring } from "@/lib/motion";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 interface CheckoutShellProps {
   merchantName: string;
@@ -31,12 +33,59 @@ export function CheckoutShell({
 }: CheckoutShellProps) {
   const navigate = useNavigate();
   const renderBar = showStepBar && typeof step === "number";
+  const [logoConfirm, setLogoConfirm] = useState(false);
+
+  const logoModal = logoConfirm ? (
+    <AnimatePresence>
+      <motion.div
+        key="logo-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 backdrop-blur-md p-4"
+        onClick={() => setLogoConfirm(false)}
+      >
+        <motion.div
+          key="logo-panel"
+          initial={{ scale: 0.94, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.94, opacity: 0, y: 12 }}
+          transition={spring}
+          onClick={(e) => e.stopPropagation()}
+          className="relative z-[9999] w-full max-w-sm rounded-3xl bg-background p-6 shadow-2xl ring-1 ring-border/60"
+          role="dialog"
+          aria-modal="true"
+        >
+          <h2 className="text-lg font-semibold tracking-tight">Go to home?</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Are you sure you want to leave? Your current progress may be lost.
+          </p>
+          <div className="mt-6 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setLogoConfirm(false)}
+              className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
+            >
+              Stay here
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLogoConfirm(false); navigate({ to: "/" }); }}
+              className="rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform active:scale-[0.97]"
+            >
+              Yes, go home
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  ) : null;
 
   return (
     <div className="relative flex min-h-screen flex-col">
       <AmbientBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-6">
-        <button type="button" onClick={() => navigate({ to: "/" })} className="flex min-w-0 items-center gap-3 text-left">
+        <button type="button" onClick={() => setLogoConfirm(true)} className="flex min-w-0 items-center gap-3 text-left">
           <div className="flex h-9 w-9 flex-none items-center justify-center rounded-2xl bg-foreground text-sm font-semibold text-background">
             {merchantInitial}
           </div>
@@ -84,6 +133,7 @@ export function CheckoutShell({
           {children}
         </motion.div>
       </main>
+      {typeof document !== "undefined" && logoModal ? createPortal(logoModal, document.body) : null}
     </div>
   );
 }

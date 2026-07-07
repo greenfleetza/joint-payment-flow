@@ -131,7 +131,7 @@ function ContributorSetup() {
                   <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-[1.1fr_1fr_160px_auto]">
                     <div className="flex flex-col gap-1">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        {r.isInitiator ? "Host / You" : "Contributor"}
+                        {r.isInitiator ? `Host / You · ${r.name || ""}` : "Contributor"}
                       </span>
                       <label className="flex flex-col gap-1">
                         <span className="text-[11px] font-medium text-muted-foreground">Full name</span>

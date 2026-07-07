@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Send, Share2, CreditCard } from "lucide-react";
-import { openEmailComposer, shareOrCopy } from "@/lib/email-templates";
+import { openEmailComposer, shareOrCopy, buildReminderEmail } from "@/lib/email-templates";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
@@ -61,29 +61,31 @@ function StatusScreen() {
   }, [allDone, navigate, sessionId]);
 
   function payFor(cid: string) {
-    if (!tx) return;
-    const c = tx.contributors.find((x) => x.id === cid);
-    if (!c) return;
-    const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
-    setToast(`Opening ${c.name}'s share link`);
-    if (typeof window !== "undefined") {
-      window.location.assign(shareLink);
-    }
-    setTimeout(() => setToast(null), 1600);
+    navigate({ to: "/checkout/$sessionId/pay", params: { sessionId }, search: { to: cid } });
   }
   function remind(cid: string) {
     const c = tx?.contributors.find((x) => x.id === cid);
     if (!c || !tx) return;
     const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
-    const { subject, body } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link: shareLink, transactionId: sessionId });
-    openEmailComposer({ recipientEmail: c.email, subject, body });
-    setToast(`Reminder drafted for ${c.name}`);
+    const { subject, text } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link: shareLink, transactionId: sessionId });
+    openEmailComposer({ recipientEmail: c.email, subject, body: text });
+    setToast(`Reminder sent to ${c.name}`);
     setTimeout(() => setToast(null), 1600);
   }
   async function share(cid: string) {
     const link = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : "";
-    const didShare = await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
-    setToast(didShare ? "Share dialog opened" : "Link copied");
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: `${tx?.merchantName ?? "ZakaPay"} payment link`, text: `Pay your share for ${tx?.merchantName}`, url: link });
+        setToast("Share dialog opened");
+      } catch {
+        await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
+        setToast("Link copied");
+      }
+    } else {
+      await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
+      setToast("Link copied");
+    }
     setTimeout(() => setToast(null), 1600);
   }
 
@@ -100,9 +102,11 @@ function StatusScreen() {
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Contributor payment status
           </span>
-          <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {timeLeft}
-          </span>
+          {timeLeft && (
+            <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {timeLeft}
+            </span>
+          )}
         </div>
 
         <GlassCard variant="strong" padding="lg" className="flex flex-col gap-4">

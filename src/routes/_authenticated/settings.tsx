@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+// Note: email is derived from Clerk's useUser() hook, no local state needed
 import { toast } from "sonner";
 
 import { DashboardShell } from "@/components/dashboard-shell";
 import { GlassCard } from "@/components/glass-card";
-import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@/integrations/clerk";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -23,11 +24,8 @@ function Settings() {
   const [brand, setBrand] = useState("#0071E3");
   const [contributorEnabled, setContributor] = useState(true);
   const [multiCardEnabled, setMultiCard] = useState(true);
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ""));
-  }, []);
+  const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? "";
 
   return (
     <DashboardShell>

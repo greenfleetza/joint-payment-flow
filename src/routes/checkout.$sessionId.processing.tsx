@@ -79,9 +79,7 @@ function Processing() {
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
             {tx?.kind === "multi_card" ? "Processing methods" : "Processing your share"}
           </span>
-          <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Tx {sessionId}
-          </span>
+
         </div>
 
         <div className="flex flex-col items-center gap-2">

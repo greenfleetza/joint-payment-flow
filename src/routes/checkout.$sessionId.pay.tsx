@@ -28,12 +28,10 @@ function PayShare() {
   const navigate = useNavigate();
   useEffect(() => { txStore.ensure(sessionId, "contributor"); }, [sessionId]);
   const tx = useTransaction(sessionId);
-  const [selectedContributorId, setSelectedContributorId] = useState<string | null>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const to = new URLSearchParams(window.location.search).get("to");
-    setSelectedContributorId(to);
-  }, []);
+  // Read contributor ID from URL synchronously so share is correct on first render
+  const [selectedContributorId, setSelectedContributorId] = useState<string | null>(
+    () => typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("to") : null,
+  );
   const contributor = tx?.contributors.find((c) => c.id === selectedContributorId) ?? tx?.contributors.find((c) => c.isInitiator);
   const share = contributor?.shareCents ?? tx?.totalCents ?? 0;
 
@@ -91,15 +89,21 @@ function PayShare() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canPay || !tx || !contributor) return;
+    if (!tx || !contributor) return;
+    // Build allocations from selected methods
     const allocs = activeMethods
       .filter((m) => allocations[m.id]?.selected)
       .map((m) => ({ methodId: m.id, amountCents: allocations[m.id].amountCents }));
+    // If no allocations yet, default to first method with full share
+    if (allocs.length === 0) {
+      const first = tx.methods[0];
+      if (first) allocs.push({ methodId: first.id, amountCents: share });
+    }
     txStore.patchContributor(sessionId, contributor.id, { allocations: allocs, status: "paid" });
     txStore.setHostAllocations(sessionId, allocs);
     const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${contributor.id}` : `/c/${sessionId}?to=${contributor.id}`;
-    const { subject, body } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: contributor.name, recipientEmail: contributor.email, shareAmount: contributor.shareCents, link: shareLink, transactionId: sessionId });
-    openEmailComposer({ recipientEmail: contributor.email, subject, body });
+    const { subject, text } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: contributor.name, recipientEmail: contributor.email, shareAmount: contributor.shareCents, link: shareLink, transactionId: sessionId });
+    openEmailComposer({ recipientEmail: contributor.email, subject, body: text });
     navigate({ to: "/checkout/$sessionId/processing", params: { sessionId } });
   }
 
@@ -127,7 +131,7 @@ function PayShare() {
                 Your share
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {contributor?.name ? `${contributor.name}` : "for this contributor"}
+                {contributor?.name || "Contributor"}
               </p>
             </div>
             <AmountDisplay amountCents={share} size="md" />
@@ -146,8 +150,7 @@ function PayShare() {
 
           <button
             type="submit"
-            disabled={!canPay}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition-transform active:scale-[0.97]"
           >
             <Lock className="h-4 w-4" />
             Pay Your Share (${(share / 100).toFixed(2)})

@@ -106,23 +106,24 @@ function Invited() {
           </div>
         </div>
 
-        {/* Split action row — half-size buttons, side by side */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={goStatus}
-            className="rounded-full border border-border bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
-          >
-            Payment Status
-          </button>
-          <button
-            type="button"
-            onClick={goPay}
-            className="rounded-full bg-foreground px-3 py-2 text-xs font-semibold uppercase tracking-wider text-background transition-transform active:scale-[0.97]"
-          >
-            Pay Your Share
-          </button>
-        </div>
+      {/* Split action row — share link + payment status */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={openShareDialog}
+          className="rounded-full border border-border bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
+        >
+          <Share2 className="inline h-3 w-3 mr-1" />
+          Share Link
+        </button>
+        <button
+          type="button"
+          onClick={() => window.open(`/checkout/${sessionId}/status`, "_blank")}
+          className="rounded-full bg-foreground px-3 py-2 text-xs font-semibold uppercase tracking-wider text-background transition-transform active:scale-[0.97]"
+        >
+          Payment Status
+        </button>
+      </div>
 
         <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={tx?.totalCents ?? 0} showCoupon={false} />
 
@@ -152,7 +153,7 @@ function Invited() {
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium">{c.name}</p>
                       {c.isInitiator && (
-                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Host / You</span>
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Host / You · {c.name}</span>
                       )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{c.email}</p>

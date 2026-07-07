@@ -70,9 +70,15 @@ export function ProcessingCard({ method, amountCents, state }: Props) {
             <p className="mt-2 text-xs opacity-70">Digital wallet</p>
           </div>
         ) : (
-          <div className="flex h-full flex-col justify-between" style={{ backfaceVisibility: "hidden" }}>
+          <div className="flex h-full flex-col justify-between p-1" style={{ backfaceVisibility: "hidden" }}>
             <div className="flex items-start justify-between">
-              <div className="h-8 w-11 rounded-md bg-gradient-to-br from-yellow-300 to-yellow-500 opacity-90" />
+              <div className="flex h-8 w-11 items-center justify-center rounded-md bg-gradient-to-br from-yellow-300 to-yellow-500">
+                <svg width="24" height="16" viewBox="0 0 24 16" fill="none">
+                  <rect width="24" height="16" rx="2" fill="rgba(0,0,0,0.1)"/>
+                  <circle cx="9" cy="8" r="5" fill="#EB001B" opacity="0.8"/>
+                  <circle cx="15" cy="8" r="5" fill="#F79E1B" opacity="0.8"/>
+                </svg>
+              </div>
               <p className="text-sm font-bold uppercase tracking-wider">{brandLabel}</p>
             </div>
             <div>

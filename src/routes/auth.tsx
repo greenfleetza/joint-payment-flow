@@ -22,7 +22,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { isSignedIn, signIn, signOut, openSignIn } = useAuth();
+  const { isSignedIn, signOut } = useAuth();
   const { user } = useUser();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -37,13 +37,12 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        toast.success("Clerk sign-up is configured through your environment. Complete the hosted flow to create an account.");
-        trackEvent("auth_signup_prompted", { email });
-      } else {
-        await signIn?.create({ identifier: email, password });
-        trackEvent("auth_signin_success", { email });
-      }
+      // For now, redirect to Clerk's hosted sign-in page
+      const pk = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+      const clerkInstance = pk?.split("_")[2]?.split(".")[0] ?? "";
+      const clerkDomain = `https://${clerkInstance}.accounts.dev`;
+      window.location.href = `${clerkDomain}/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
+      trackEvent(mode === "signup" ? "auth_signup_prompted" : "auth_signin_success", { email });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -54,8 +53,11 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
-      if (openSignIn) {
-        await openSignIn({ redirectUrl: `${window.location.origin}/dashboard` });
+      // Redirect to Clerk's hosted sign-in page for Google OAuth
+      const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+      const clerkDomain = publishableKey ? `https://${publishableKey.split("_")[2]?.split(".")[0]}.accounts.dev` : "";
+      if (clerkDomain) {
+        window.location.href = `${clerkDomain}/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
       }
       trackEvent("auth_google_started");
     } catch (err) {
