@@ -6,6 +6,7 @@ import { Check, Plus, CreditCard, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
 import type { TxMethod, MethodBrand } from "@/lib/tx-store";
+import { AddCardForm } from "@/components/add-card-form";
 
 interface Props {
   open: boolean;
