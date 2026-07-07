@@ -101,7 +101,7 @@ export const createPaymentIntent = action({
     }
 
     const stripe = (await import("stripe")).default;
-    const stripeClient = new stripe(secretKey, { apiVersion: "2025-06-30.basil" });
+    const stripeClient = new stripe(secretKey, { apiVersion: "2026-06-24.dahlia" });
 
     const intent = await stripeClient.paymentIntents.create({
       amount: args.amountCents,

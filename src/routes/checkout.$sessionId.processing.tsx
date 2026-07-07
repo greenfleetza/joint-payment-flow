@@ -1,6 +1,6 @@
 // S08 Processing — sequentially animate each allocated method, then route by tx kind.
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
@@ -38,6 +38,31 @@ function Processing() {
       .filter(Boolean) as { method: TxMethod; amountCents: number }[];
   }, [tx]);
 
+  const shareTotal = items.reduce((a, b) => a + b.amountCents, 0);
+  const total = tx?.totalCents ?? 0;
+  const stripeFired = useRef(false);
+
+  // Create real Stripe PaymentIntent when processing starts (once per session)
+  useEffect(() => {
+    if (!tx || items.length === 0 || idx !== 0 || stripeFired.current) return;
+    stripeFired.current = true;
+    const totalAmount = tx.kind === "multi_card" ? tx.totalCents : shareTotal;
+    import("@/lib/convex-actions")
+      .then(({ createStripePaymentIntent }) =>
+        createStripePaymentIntent({
+          amountCents: totalAmount,
+          sessionId,
+          description: `ZakaPay split — ${tx.merchantName} — ${sessionId}`,
+        }),
+      )
+      .then((result) => {
+        if (result?.success) {
+          console.log(`[stripe] PaymentIntent ${result.mock ? "(mock) " : ""}created:`, result.paymentIntentId);
+        }
+      })
+      .catch(() => {});
+  }, [tx, items.length, idx, sessionId, shareTotal]);
+
   useEffect(() => {
     if (!tx || items.length === 0) return;
     if (idx < items.length) {
@@ -63,8 +88,6 @@ function Processing() {
     return () => clearTimeout(t);
   }, [idx, items.length, tx, sessionId, navigate]);
 
-  const total = tx?.totalCents ?? 0;
-  const shareTotal = items.reduce((a, b) => a + b.amountCents, 0);
   const current = items[Math.min(idx, items.length - 1)];
 
   return (

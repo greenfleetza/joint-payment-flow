@@ -137,6 +137,50 @@ function Landing() {
         </motion.div>
       </section>
 
+      {/* How it works */}
+      <section id="how" className="relative z-10 mx-auto w-full max-w-6xl px-6 py-16">
+        <div className="mb-10 flex flex-col gap-3 text-center items-center">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
+            Simple 3-step process
+          </span>
+          <h2 className="max-w-2xl text-balance text-3xl font-semibold tracking-tight md:text-4xl">
+            How ZakaPay works
+          </h2>
+          <p className="max-w-lg text-sm text-muted-foreground">
+            From checkout to confirmed payment in three easy steps — no complex integrations required.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <GlassCard padding="lg" className="flex flex-col gap-4 items-center text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--primary)]/12 text-[color:var(--primary)]">
+              <span className="text-2xl font-bold">1</span>
+            </span>
+            <h3 className="text-lg font-semibold tracking-tight">Create a session</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              The merchant initiates a checkout. ZakaPay generates a unique payment link and calculates each contributor's share or prepares the multi-card allocation flow.
+            </p>
+          </GlassCard>
+          <GlassCard padding="lg" className="flex flex-col gap-4 items-center text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--info)]/12 text-[color:var(--info)]">
+              <span className="text-2xl font-bold">2</span>
+            </span>
+            <h3 className="text-lg font-semibold tracking-tight">Contributors pay</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Each contributor opens their unique link — no account needed — and pays their share using any card or digital wallet. Invitations are sent via email or share link.
+            </p>
+          </GlassCard>
+          <GlassCard padding="lg" className="flex flex-col gap-4 items-center text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--success)]/12 text-[color:var(--success)]">
+              <span className="text-2xl font-bold">3</span>
+            </span>
+            <h3 className="text-lg font-semibold tracking-tight">One payment captured</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Once all shares are collected, Stripe captures a single Payment Intent. The merchant receives one successful payment — zero contributor complexity on their end.
+            </p>
+          </GlassCard>
+        </div>
+      </section>
+
       {/* Products */}
       <section id="products" className="relative z-10 mx-auto w-full max-w-6xl px-6 py-16">
         <div className="mb-10 flex flex-col gap-3">

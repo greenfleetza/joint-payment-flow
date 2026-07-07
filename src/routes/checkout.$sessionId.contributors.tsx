@@ -12,6 +12,8 @@ import { txStore, useTransaction, type TxContributor } from "@/lib/tx-store";
 import { formatMoney } from "@/lib/format";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { sendEmailViaResend } from "@/lib/convex-actions";
+import { buildInvitationEmail } from "@/lib/email-templates";
 
 export const Route = createFileRoute("/checkout/$sessionId/contributors")({
   head: () => ({
@@ -32,6 +34,8 @@ function ContributorSetup() {
   useEffect(() => { txStore.ensure(sessionId, "contributor"); }, [sessionId]);
   const tx = useTransaction(sessionId);
   const total = tx?.totalCents ?? 0;
+
+  const [submitting, setSubmitting] = useState(false);
 
   const [rows, setRows] = useState<Draft[]>(() => {
     if (tx?.contributors && tx.contributors.length > 0) {
@@ -74,8 +78,9 @@ function ContributorSetup() {
     setRows((rs) => rs.map((r, i) => ({ ...r, shareCents: per + (i === 0 ? rest : 0) })));
   }
 
-  function submit() {
-    if (!canSend) return;
+  async function submit() {
+    if (!canSend || submitting) return;
+    setSubmitting(true);
     const contribs: TxContributor[] = rows.map((r) => ({
       id: r.id,
       name: r.name.trim(),
@@ -87,6 +92,27 @@ function ContributorSetup() {
       allocations: [],
     }));
     txStore.setContributors(sessionId, contribs);
+
+    // Send invitation emails via Resend (non-host contributors)
+    try {
+      const tx = txStore.get(sessionId);
+      const shortUrl = `${window.location.origin}/c/${sessionId}`;
+      for (const c of contribs) {
+        if (c.isInitiator) continue;
+        const email = buildInvitationEmail({
+          merchantName: tx?.merchantName ?? "ZakaPay",
+          recipientName: c.name,
+          recipientEmail: c.email,
+          shareAmount: c.shareCents,
+          link: shortUrl,
+          transactionId: sessionId,
+        });
+        sendEmailViaResend({ to: c.email, ...email }).catch(() => {});
+      }
+    } catch {
+      // Resend unavailable — emails will be sent when Convex is deployed
+    }
+
     navigate({ to: "/checkout/$sessionId/invited", params: { sessionId } });
   }
 
@@ -232,11 +258,11 @@ function ContributorSetup() {
             </Link>
             <button
               type="button"
-              disabled={!canSend}
+              disabled={!canSend || submitting}
               onClick={submit}
               className="inline-flex items-center justify-center rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
             >
-              Send invitations
+              {submitting ? "Sending…" : "Send invitations"}
             </button>
           </div>
         </GlassCard>
