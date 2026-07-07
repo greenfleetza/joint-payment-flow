@@ -6,6 +6,7 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { AmbientBackground } from "@/components/ambient-background";
 import { GlassCard } from "@/components/glass-card";
 import { useAuth, useUser } from "@/integrations/clerk";
+import { getClerkSignInUrl } from "@/lib/auth-config";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/observability";
 
@@ -37,11 +38,12 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      // For now, redirect to Clerk's hosted sign-in page
-      const pk = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-      const clerkInstance = pk?.split("_")[2]?.split(".")[0] ?? "";
-      const clerkDomain = `https://${clerkInstance}.accounts.dev`;
-      window.location.href = `${clerkDomain}/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
+      const signInUrl = getClerkSignInUrl("/dashboard");
+      if (signInUrl) {
+        window.location.href = signInUrl;
+      } else {
+        toast.error("Clerk is not configured. Set VITE_CLERK_PUBLISHABLE_KEY.");
+      }
       trackEvent(mode === "signup" ? "auth_signup_prompted" : "auth_signin_success", { email });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -53,15 +55,16 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
-      // Redirect to Clerk's hosted sign-in page for Google OAuth
-      const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-      const clerkDomain = publishableKey ? `https://${publishableKey.split("_")[2]?.split(".")[0]}.accounts.dev` : "";
-      if (clerkDomain) {
-        window.location.href = `${clerkDomain}/sign-in?redirect_url=${encodeURIComponent(window.location.origin + "/dashboard")}`;
+      const signInUrl = getClerkSignInUrl("/dashboard");
+      if (signInUrl) {
+        window.location.href = signInUrl;
+      } else {
+        toast.error("Clerk is not configured. Set VITE_CLERK_PUBLISHABLE_KEY.");
       }
       trackEvent("auth_google_started");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
       setBusy(false);
     }
   }

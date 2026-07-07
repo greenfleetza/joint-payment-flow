@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-r
 import { useEffect, useMemo, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
 import { buildReminderEmail, openEmailComposer } from "@/lib/email-templates";
+import { toast } from "sonner";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
@@ -94,10 +95,15 @@ function PayShare() {
     const allocs = activeMethods
       .filter((m) => allocations[m.id]?.selected)
       .map((m) => ({ methodId: m.id, amountCents: allocations[m.id].amountCents }));
-    // If no allocations yet, default to first method with full share
+    // Validate: must have at least one allocation that covers the full share
     if (allocs.length === 0) {
-      const first = tx.methods[0];
-      if (first) allocs.push({ methodId: first.id, amountCents: share });
+      toast.error("Please select a payment method before proceeding.");
+      return;
+    }
+    const totalAllocated = allocs.reduce((sum, a) => sum + a.amountCents, 0);
+    if (totalAllocated !== share) {
+      toast.error("Payment allocation must exactly match your share amount.");
+      return;
     }
     txStore.patchContributor(sessionId, contributor.id, { allocations: allocs, status: "paid" });
     txStore.setHostAllocations(sessionId, allocs);
@@ -150,7 +156,8 @@ function PayShare() {
 
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition-transform active:scale-[0.97]"
+            disabled={!canPay}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm font-semibold text-background transition-transform active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
           >
             <Lock className="h-4 w-4" />
             Pay Your Share (${(share / 100).toFixed(2)})
