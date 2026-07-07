@@ -35,8 +35,6 @@ export function PaymentMethodSheet({
   const [selected, setSelected] = useState<Set<string>>(new Set(initiallySelected));
   const [addingCard, setAddingCard] = useState(false);
   const [addingWallet, setAddingWallet] = useState(false);
-  const [cardLast4, setCardLast4] = useState("");
-  const [cardBrand, setCardBrand] = useState<MethodBrand>("visa");
   const [walletBrand, setWalletBrand] = useState<MethodBrand>("paypal");
 
   useEffect(() => {
