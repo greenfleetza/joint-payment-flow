@@ -94,23 +94,19 @@ function ContributorSetup() {
     txStore.setContributors(sessionId, contribs);
 
     // Send invitation emails via Resend (non-host contributors)
-    try {
-      const tx = txStore.get(sessionId);
-      const shortUrl = `${window.location.origin}/c/${sessionId}`;
-      for (const c of contribs) {
-        if (c.isInitiator) continue;
-        const email = buildInvitationEmail({
-          merchantName: tx?.merchantName ?? "ZakaPay",
-          recipientName: c.name,
-          recipientEmail: c.email,
-          shareAmount: c.shareCents,
-          link: shortUrl,
-          transactionId: sessionId,
-        });
-        sendEmailViaResend({ to: c.email, ...email }).catch(() => {});
-      }
-    } catch {
-      // Resend unavailable — emails will be sent when Convex is deployed
+    const tx = txStore.get(sessionId);
+    const shortUrl = `${window.location.origin}/c/${sessionId}`;
+    for (const c of contribs) {
+      if (c.isInitiator) continue;
+      const email = buildInvitationEmail({
+        merchantName: tx?.merchantName ?? "ZakaPay",
+        recipientName: c.name,
+        recipientEmail: c.email,
+        shareAmount: c.shareCents,
+        link: shortUrl,
+        transactionId: sessionId,
+      });
+      sendEmailViaResend({ to: c.email, ...email }).catch(() => {});
     }
 
     navigate({ to: "/checkout/$sessionId/invited", params: { sessionId } });
