@@ -95,14 +95,8 @@ function PayShare() {
     const allocs = activeMethods
       .filter((m) => allocations[m.id]?.selected)
       .map((m) => ({ methodId: m.id, amountCents: allocations[m.id].amountCents }));
-    // Validate: must have at least one allocation that covers the full share
-    if (allocs.length === 0) {
-      toast.error("Please select a payment method before proceeding.");
-      return;
-    }
-    const totalAllocated = allocs.reduce((sum, a) => sum + a.amountCents, 0);
-    if (totalAllocated !== share) {
-      toast.error("Payment allocation must exactly match your share amount.");
+    // Validate: must have at least one valid allocation
+    if (allocs.length === 0 || allocs.reduce((s, a) => s + a.amountCents, 0) !== share) {
       return;
     }
     txStore.patchContributor(sessionId, contributor.id, { allocations: allocs, status: "paid" });
