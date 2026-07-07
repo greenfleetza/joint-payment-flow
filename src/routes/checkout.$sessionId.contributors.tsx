@@ -101,15 +101,8 @@ function ContributorSetup() {
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Tx {sessionId}
+            Add contributors
           </span>
-          <button
-            type="button"
-            onClick={splitEvenly}
-            className="text-xs font-semibold uppercase tracking-wider text-[color:var(--primary)] hover:underline underline-offset-4"
-          >
-            Split evenly
-          </button>
         </div>
 
         <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={total} />
@@ -135,38 +128,50 @@ function ContributorSetup() {
                     r.isInitiator ? "border-[color:var(--primary)]/30 bg-[color:var(--primary)]/5" : "border-border/60 bg-card/70",
                   )}
                 >
-                  <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-[1fr_1fr_160px_auto]">
-                    <input
-                      aria-label="Contributor name"
-                      required
-                      value={r.name}
-                      readOnly={r.isInitiator}
-                      onChange={(e) => update(r.id, { name: e.target.value })}
-                      placeholder="Full name (required)"
-                      className={cn(
-                        "rounded-xl bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        r.isInitiator && "font-semibold text-foreground",
-                      )}
-                    />
-                    <input
-                      aria-label="Contributor email"
-                      required
-                      value={r.email}
-                      readOnly={r.isInitiator}
-                      onChange={(e) => update(r.id, { email: e.target.value })}
-                      placeholder="email@example.com (required)"
-                      type="email"
-                      className="rounded-xl bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
+                  <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-[1.1fr_1fr_160px_auto]">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {r.isInitiator ? "Host / You" : "Contributor"}
+                      </span>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[11px] font-medium text-muted-foreground">Full name</span>
+                        <input
+                          aria-label="Contributor name"
+                          required
+                          value={r.name}
+                          onChange={(e) => update(r.id, { name: e.target.value })}
+                          placeholder="Full name (required)"
+                          className={cn(
+                            "rounded-xl bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            r.isInitiator && "font-semibold text-foreground",
+                          )}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-[11px] font-medium text-muted-foreground">Email address</span>
+                        <input
+                          aria-label="Contributor email"
+                          required
+                          value={r.email}
+                          onChange={(e) => update(r.id, { email: e.target.value })}
+                          placeholder="email@example.com (required)"
+                          type="email"
+                          className="rounded-xl bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                      </label>
+                    </div>
                     <div className="flex items-center gap-1 rounded-xl bg-white/70 px-2 ring-1 ring-border/60">
                       <span className="text-xs text-muted-foreground">$</span>
                       <input
                         aria-label="Share amount"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={(r.shareCents / 100).toFixed(2)}
-                        onChange={(e) => update(r.id, { shareCents: Math.max(0, Math.round(parseFloat(e.target.value || "0") * 100)) })}
+                        type="text"
+                        inputMode="decimal"
+                        value={((r.shareCents ?? 0) / 100).toFixed(2)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const parsed = raw === "" ? 0 : Number.parseFloat(raw);
+                          update(r.id, { shareCents: Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0 });
+                        }}
                         className="tabular flex-1 bg-transparent px-1 py-2 text-right text-sm outline-none"
                       />
                     </div>
@@ -204,6 +209,13 @@ function ContributorSetup() {
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/70 px-3.5 py-1.5 text-xs font-medium backdrop-blur-md transition-colors hover:bg-white"
               >
                 <Plus className="h-3.5 w-3.5" /> Add contributor
+              </button>
+              <button
+                type="button"
+                onClick={splitEvenly}
+                className="text-xs font-semibold uppercase tracking-wider text-[color:var(--primary)] hover:underline underline-offset-4"
+              >
+                Split evenly
               </button>
               {!balanced && (
                 <span className="text-xs text-muted-foreground">

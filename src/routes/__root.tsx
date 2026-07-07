@@ -13,6 +13,9 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AmbientBackground } from "@/components/ambient-background";
 import { AppToaster } from "@/components/app-toaster";
+import { ClerkAppProvider } from "@/integrations/clerk";
+import { ConvexAppProvider } from "@/lib/convex";
+import { initObservability } from "@/lib/observability";
 
 function NotFoundComponent() {
   return (
@@ -128,10 +131,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    initObservability();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <AppToaster />
+      <ClerkAppProvider>
+        <ConvexAppProvider>
+          <Outlet />
+          <AppToaster />
+        </ConvexAppProvider>
+      </ClerkAppProvider>
     </QueryClientProvider>
   );
 }

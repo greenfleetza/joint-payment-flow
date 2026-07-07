@@ -2,6 +2,7 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
+import { buildReminderEmail, openEmailComposer } from "@/lib/email-templates";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
@@ -27,8 +28,14 @@ function PayShare() {
   const navigate = useNavigate();
   useEffect(() => { txStore.ensure(sessionId, "contributor"); }, [sessionId]);
   const tx = useTransaction(sessionId);
-  const initiator = tx?.contributors.find((c) => c.isInitiator);
-  const share = initiator?.shareCents ?? tx?.totalCents ?? 0;
+  const [selectedContributorId, setSelectedContributorId] = useState<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const to = new URLSearchParams(window.location.search).get("to");
+    setSelectedContributorId(to);
+  }, []);
+  const contributor = tx?.contributors.find((c) => c.id === selectedContributorId) ?? tx?.contributors.find((c) => c.isInitiator);
+  const share = contributor?.shareCents ?? tx?.totalCents ?? 0;
 
   // Which method IDs are currently selected for allocation (from the sheet).
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -84,13 +91,15 @@ function PayShare() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canPay || !tx || !initiator) return;
-    // Persist host allocations onto initiator contributor
+    if (!canPay || !tx || !contributor) return;
     const allocs = activeMethods
       .filter((m) => allocations[m.id]?.selected)
       .map((m) => ({ methodId: m.id, amountCents: allocations[m.id].amountCents }));
-    txStore.patchContributor(sessionId, initiator.id, { allocations: allocs });
+    txStore.patchContributor(sessionId, contributor.id, { allocations: allocs, status: "paid" });
     txStore.setHostAllocations(sessionId, allocs);
+    const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${contributor.id}` : `/c/${sessionId}?to=${contributor.id}`;
+    const { subject, body } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: contributor.name, recipientEmail: contributor.email, shareAmount: contributor.shareCents, link: shareLink, transactionId: sessionId });
+    openEmailComposer({ recipientEmail: contributor.email, subject, body });
     navigate({ to: "/checkout/$sessionId/processing", params: { sessionId } });
   }
 
@@ -105,7 +114,7 @@ function PayShare() {
       <form onSubmit={submit} className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Tx {sessionId}
+            Pay your share
           </span>
         </div>
 
@@ -113,9 +122,14 @@ function PayShare() {
 
         <GlassCard variant="strong" padding="lg" className="flex flex-col gap-6">
           <div className="flex items-end justify-between gap-4">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
-              Your share
-            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">
+                Your share
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {contributor?.name ? `${contributor.name}` : "for this contributor"}
+              </p>
+            </div>
             <AmountDisplay amountCents={share} size="md" />
           </div>
 

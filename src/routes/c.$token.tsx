@@ -17,10 +17,15 @@ export const Route = createFileRoute("/c/$token")({
 function ContributorLanding() {
   const { token } = useParams({ from: "/c/$token" });
   useEffect(() => {
-    // Ensure the transaction exists in the store — treats the token as the tx id.
     const kind = token.startsWith("M") ? "multi_card" : "contributor";
     txStore.ensure(token, kind);
   }, [token]);
+
+  const contributorId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("to") : null;
+
+  if (contributorId) {
+    return <Navigate to="/checkout/$sessionId/pay" params={{ sessionId: token }} search={{ to: contributorId }} />;
+  }
 
   return <Navigate to="/checkout/$sessionId/status" params={{ sessionId: token }} />;
 }

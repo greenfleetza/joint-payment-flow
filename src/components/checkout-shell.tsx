@@ -1,6 +1,7 @@
 // Shared checkout shell: merchant header + step bar + optional close button.
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AmbientBackground } from "@/components/ambient-background";
 import { CloseConfirm } from "@/components/close-confirm";
@@ -28,13 +29,14 @@ export function CheckoutShell({
   showClose = false,
   children,
 }: CheckoutShellProps) {
+  const navigate = useNavigate();
   const renderBar = showStepBar && typeof step === "number";
 
   return (
     <div className="relative flex min-h-screen flex-col">
       <AmbientBackground />
       <header className="relative z-10 mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-6">
-        <div className="flex min-w-0 items-center gap-3">
+        <button type="button" onClick={() => navigate({ to: "/" })} className="flex min-w-0 items-center gap-3 text-left">
           <div className="flex h-9 w-9 flex-none items-center justify-center rounded-2xl bg-foreground text-sm font-semibold text-background">
             {merchantInitial}
           </div>
@@ -44,7 +46,7 @@ export function CheckoutShell({
               <p className="mt-1 truncate text-xs text-muted-foreground">Order {orderReference}</p>
             )}
           </div>
-        </div>
+        </button>
         <div className="flex flex-none items-center gap-2">
           <div className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
             <Sparkles className="h-3.5 w-3.5" aria-hidden />

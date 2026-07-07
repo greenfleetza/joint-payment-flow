@@ -3,10 +3,12 @@ import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Send, Share2, CreditCard } from "lucide-react";
+import { openEmailComposer, shareOrCopy } from "@/lib/email-templates";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
 import { CartSummary } from "@/components/cart-summary";
+import { EditContributorDialog } from "@/components/edit-contributor-dialog";
 import { txStore, useTransaction, txPaidCents } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -43,6 +45,7 @@ function StatusScreen() {
   const tx = useTransaction(sessionId);
   const timeLeft = useTimeLeft(tx?.expiresAt);
   const [toast, setToast] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
 
   const total = tx?.totalCents ?? 0;
   const paidCents = tx ? txPaidCents(tx) : 0;
@@ -61,27 +64,27 @@ function StatusScreen() {
     if (!tx) return;
     const c = tx.contributors.find((x) => x.id === cid);
     if (!c) return;
-    // Give them a default method allocation covering full share
-    const method = tx.methods[0];
-    txStore.patchContributor(sessionId, cid, {
-      status: "paid",
-      allocations: method ? [{ methodId: method.id, amountCents: c.shareCents }] : [],
-    });
-    setToast(`Paid for ${c.name}`);
+    const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
+    setToast(`Opening ${c.name}'s share link`);
+    if (typeof window !== "undefined") {
+      window.location.assign(shareLink);
+    }
     setTimeout(() => setToast(null), 1600);
   }
   function remind(cid: string) {
     const c = tx?.contributors.find((x) => x.id === cid);
-    setToast(`Reminder sent to ${c?.name ?? "contributor"}`);
+    if (!c || !tx) return;
+    const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
+    const { subject, body } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link: shareLink, transactionId: sessionId });
+    openEmailComposer({ recipientEmail: c.email, subject, body });
+    setToast(`Reminder drafted for ${c.name}`);
     setTimeout(() => setToast(null), 1600);
   }
   async function share(cid: string) {
     const link = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : "";
-    try {
-      await navigator.clipboard.writeText(link);
-      setToast("Link copied");
-      setTimeout(() => setToast(null), 1600);
-    } catch {}
+    const didShare = await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
+    setToast(didShare ? "Share dialog opened" : "Link copied");
+    setTimeout(() => setToast(null), 1600);
   }
 
   return (
@@ -95,7 +98,7 @@ function StatusScreen() {
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Tx {sessionId}
+            Contributor payment status
           </span>
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             {timeLeft}
@@ -105,7 +108,7 @@ function StatusScreen() {
         <GlassCard variant="strong" padding="lg" className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">Live split progress</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">Live contributor payment status</p>
               <p className="mt-1 text-sm text-muted-foreground">Captured when every contributor has paid.</p>
             </div>
             <p className="tabular text-2xl font-semibold">{paidCount}<span className="text-muted-foreground">/{totalCount}</span></p>
@@ -124,7 +127,7 @@ function StatusScreen() {
           </div>
         </GlassCard>
 
-        <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={total} />
+        <CartSummary items={tx?.items ?? []} subtotalCents={tx?.subtotalCents ?? 0} vatCents={tx?.vatCents ?? 0} totalCents={total} showCoupon={false} />
 
         <GlassCard variant="strong" padding="lg" className="flex flex-col gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--primary)]">Contributors</p>
@@ -181,10 +184,13 @@ function StatusScreen() {
                         <CreditCard className="h-3 w-3" /> Pay for them
                       </button>
                       <button type="button" onClick={() => remind(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
-                        <Send className="h-3 w-3" /> Resend reminder
+                        <Send className="h-3 w-3" /> Send reminder
                       </button>
                       <button type="button" onClick={() => share(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         <Share2 className="h-3 w-3" /> Share link
+                      </button>
+                      <button type="button" onClick={() => setEditing(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
+                        Edit details
                       </button>
                     </div>
                   )}
@@ -194,6 +200,19 @@ function StatusScreen() {
           </ul>
         </GlassCard>
       </div>
+
+      <EditContributorDialog
+        open={!!editing}
+        name={tx?.contributors.find((c) => c.id === editing)?.name ?? ""}
+        email={tx?.contributors.find((c) => c.id === editing)?.email ?? ""}
+        shareCents={tx?.contributors.find((c) => c.id === editing)?.shareCents ?? 0}
+        onCancel={() => setEditing(null)}
+        onSave={(name, email) => {
+          const current = tx?.contributors.find((c) => c.id === editing);
+          if (current) txStore.patchContributor(sessionId, current.id, { name, email });
+          setEditing(null);
+        }}
+      />
 
       {toast && (
         <motion.div

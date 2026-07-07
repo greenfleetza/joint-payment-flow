@@ -1,7 +1,7 @@
 // S03 Invitation Sent — shows every contributor for this tx, edit dialog, split action row.
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
-import { Copy, Check, Pencil, Mail } from "lucide-react";
+import { Copy, Check, Pencil, Mail, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { CheckoutShell } from "@/components/checkout-shell";
@@ -12,6 +12,7 @@ import { txStore, useTransaction } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { spring, tapScale } from "@/lib/motion";
+import { shareOrCopy } from "@/lib/email-templates";
 
 export const Route = createFileRoute("/checkout/$sessionId/invited")({
   head: () => ({
@@ -37,18 +38,25 @@ function Invited() {
   const tx = useTransaction(sessionId);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const shortUrl =
     typeof window !== "undefined"
-      ? `${window.location.host}/c/${sessionId}`
+      ? `${window.location.origin}/c/${sessionId}`
       : `zaka.pay/c/${sessionId}`;
 
   async function copyUrl() {
     try {
-      await navigator.clipboard.writeText(`https://${shortUrl}`);
+      await navigator.clipboard.writeText(shortUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {}
+  }
+
+  async function openShareDialog() {
+    setShareOpen(true);
+    await shareOrCopy(shortUrl, `Share ${tx?.merchantName ?? "your payment"}`);
+    setShareOpen(false);
   }
 
   const goStatus = () => navigate({ to: "/checkout/$sessionId/status", params: { sessionId } });
@@ -67,30 +75,35 @@ function Invited() {
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Tx {sessionId}
+            Invitation sent
           </span>
-          <button
-            type="button"
-            onClick={copyUrl}
-            className="flex items-center gap-2 rounded-full border border-border bg-white/80 px-3 py-1.5 backdrop-blur-md transition-colors hover:bg-white"
-          >
+        </div>
+
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/60 bg-white/70 p-4 text-center backdrop-blur-md">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-2">
             <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="tabular text-xs font-medium">{shortUrl}</span>
+            <span className="truncate text-xs font-medium">{shortUrl}</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={copyUrl}
+              className="inline-flex items-center gap-2 rounded-full bg-foreground px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-background"
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy link"}
+            </button>
             <motion.button
               type="button"
-              onClick={(e) => { e.stopPropagation(); goStatus(); }}
+              onClick={openShareDialog}
               whileTap={tapScale}
               transition={spring}
-              className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--primary)]"
-              aria-label="Open status page"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-white/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-foreground"
             >
-              open →
+              <Share2 className="h-3.5 w-3.5" />
+              Share link
             </motion.button>
-            <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold text-background">
-              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              {copied ? "Copied" : "Copy"}
-            </span>
-          </button>
+          </div>
         </div>
 
         {/* Split action row — half-size buttons, side by side */}
@@ -139,7 +152,7 @@ function Invited() {
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-medium">{c.name}</p>
                       {c.isInitiator && (
-                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Host</span>
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Host / You</span>
                       )}
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{c.email}</p>

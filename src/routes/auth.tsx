@@ -5,9 +5,9 @@ import { Sparkles, Loader2 } from "lucide-react";
 
 import { AmbientBackground } from "@/components/ambient-background";
 import { GlassCard } from "@/components/glass-card";
-import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+import { useAuth, useUser } from "@/integrations/clerk";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/observability";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -22,37 +22,27 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { isSignedIn, signIn, signOut, openSignIn } = useAuth();
+  const { user } = useUser();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Redirect if already signed in
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) navigate({ to: "/dashboard", replace: true });
-    });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate]);
+    if (isSignedIn) navigate({ to: "/dashboard", replace: true });
+  }, [isSignedIn, navigate]);
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-        });
-        if (error) throw error;
-        toast.success("Check your inbox to confirm your account.");
+        toast.success("Clerk sign-up is configured through your environment. Complete the hosted flow to create an account.");
+        trackEvent("auth_signup_prompted", { email });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await signIn?.create({ identifier: email, password });
+        trackEvent("auth_signin_success", { email });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -64,10 +54,10 @@ function AuthPage() {
   async function handleGoogle() {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
-      if (result.error) throw new Error(result.error.message);
+      if (openSignIn) {
+        await openSignIn({ redirectUrl: `${window.location.origin}/dashboard` });
+      }
+      trackEvent("auth_google_started");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Google sign-in failed");
       setBusy(false);
@@ -108,6 +98,16 @@ function AuthPage() {
             <GoogleIcon />
             Continue with Google
           </button>
+
+          {user ? (
+            <button
+              type="button"
+              onClick={() => signOut?.()} 
+              className="mt-3 w-full rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground"
+            >
+              Sign out
+            </button>
+          ) : null}
 
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" /> or with email <span className="h-px flex-1 bg-border" />

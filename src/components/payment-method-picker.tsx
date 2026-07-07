@@ -64,13 +64,6 @@ export function PaymentMethodPicker({
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Select payment methods
         </p>
-        <button
-          type="button"
-          onClick={onSplitEvenly}
-          className="text-xs font-semibold uppercase tracking-wider text-[color:var(--primary)] hover:underline underline-offset-4"
-        >
-          Split evenly
-        </button>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -164,18 +157,27 @@ export function PaymentMethodPicker({
           })}
         </AnimatePresence>
 
-        {onAddMethod && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {onAddMethod && (
+            <button
+              type="button"
+              onClick={onAddMethod}
+              className="mt-1 inline-flex items-center justify-center gap-2 self-center rounded-full border border-dashed border-border bg-secondary/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-secondary"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white">
+                <Plus className="h-3 w-3" />
+              </span>
+              Add method
+            </button>
+          )}
           <button
             type="button"
-            onClick={onAddMethod}
-            className="mt-1 inline-flex items-center justify-center gap-2 self-center rounded-full border border-dashed border-border bg-secondary/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-secondary"
+            onClick={onSplitEvenly}
+            className="mt-1 text-xs font-semibold uppercase tracking-wider text-[color:var(--primary)] hover:underline underline-offset-4"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white">
-              <Plus className="h-3 w-3" />
-            </span>
-            Add method
+            Split evenly
           </button>
-        )}
+        </div>
       </div>
 
       {remaining !== 0 && (
