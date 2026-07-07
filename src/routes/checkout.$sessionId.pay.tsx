@@ -12,6 +12,15 @@ import { CartSummary } from "@/components/cart-summary";
 import { PaymentMethodPicker, type MethodAllocation } from "@/components/payment-method-picker";
 import { PaymentMethodSheet } from "@/components/payment-method-sheet";
 import { txStore, useTransaction } from "@/lib/tx-store";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/checkout/$sessionId/pay")({
   head: () => ({
