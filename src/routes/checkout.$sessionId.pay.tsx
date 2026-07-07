@@ -36,6 +36,14 @@ function PayShare() {
   const contributor = tx?.contributors.find((c) => c.id === selectedContributorId) ?? tx?.contributors.find((c) => c.isInitiator);
   const share = contributor?.shareCents ?? tx?.totalCents ?? 0;
 
+  // Already-paid guard: if this contributor is paid, block entry
+  const alreadyPaid = !!contributor && contributor.status === "paid";
+  const allPaid = !!tx && tx.contributors.length > 0 && tx.contributors.every((c) => c.status === "paid");
+  function dismissAlreadyPaid() {
+    if (allPaid) navigate({ to: "/checkout/$sessionId/complete", params: { sessionId } });
+    else navigate({ to: "/checkout/$sessionId/status", params: { sessionId } });
+  }
+
   // Which method IDs are currently selected for allocation (from the sheet).
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [allocations, setAllocations] = useState<Record<string, MethodAllocation>>({});
