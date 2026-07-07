@@ -132,6 +132,19 @@ function PayShare() {
       step={3}
       showClose
     >
+      <AlertDialog open={alreadyPaid}>
+        <AlertDialogContent className="z-[10000]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>This transaction has already been paid</AlertDialogTitle>
+            <AlertDialogDescription>
+              {contributor?.name ? `${contributor.name}'s ` : "Your "}share for transaction {sessionId} is already settled. You'll be taken to the {allPaid ? "completed thread" : "payment status"} view.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={dismissAlreadyPaid}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form onSubmit={submit} className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
