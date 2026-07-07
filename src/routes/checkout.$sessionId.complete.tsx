@@ -12,6 +12,7 @@ import { useTransaction } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { spring } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { downloadReceiptPdf } from "@/lib/receipt-pdf";
 
 export const Route = createFileRoute("/checkout/$sessionId/complete")({
   head: () => ({
@@ -100,10 +101,10 @@ function Complete() {
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => downloadReceiptPdf(tx)}
             className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background"
           >
-            <Download className="h-4 w-4" /> Download receipt
+            <Download className="h-4 w-4" /> Download PDF
           </button>
           <button
             type="button"

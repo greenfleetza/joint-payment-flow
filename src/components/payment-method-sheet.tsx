@@ -6,6 +6,7 @@ import { Check, Plus, CreditCard, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
 import type { TxMethod, MethodBrand } from "@/lib/tx-store";
+import { AddCardForm } from "@/components/add-card-form";
 
 interface Props {
   open: boolean;
@@ -34,8 +35,6 @@ export function PaymentMethodSheet({
   const [selected, setSelected] = useState<Set<string>>(new Set(initiallySelected));
   const [addingCard, setAddingCard] = useState(false);
   const [addingWallet, setAddingWallet] = useState(false);
-  const [cardLast4, setCardLast4] = useState("");
-  const [cardBrand, setCardBrand] = useState<MethodBrand>("visa");
   const [walletBrand, setWalletBrand] = useState<MethodBrand>("paypal");
 
   useEffect(() => {
@@ -117,53 +116,15 @@ export function PaymentMethodSheet({
                 {/* Add new card */}
                 <li>
                   {addingCard ? (
-                    <div className="rounded-2xl bg-secondary/60 p-3">
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={cardBrand}
-                          onChange={(e) => setCardBrand(e.target.value as MethodBrand)}
-                          className="rounded-xl bg-white px-2 py-2 text-sm ring-1 ring-border"
-                        >
-                          <option value="visa">Visa</option>
-                          <option value="mastercard">Mastercard</option>
-                          <option value="amex">Amex</option>
-                        </select>
-                        <input
-                          value={cardLast4}
-                          onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                          placeholder="Last 4"
-                          inputMode="numeric"
-                          className="tabular w-24 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-border outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (cardLast4.length !== 4) return;
-                            const id = `pm_${cardBrand}_${cardLast4}_${Date.now()}`;
-                            onAddMethod({
-                              id,
-                              kind: "card",
-                              brand: cardBrand,
-                              last4: cardLast4,
-                              label: `${cardBrand[0].toUpperCase() + cardBrand.slice(1)} •••• ${cardLast4}`,
-                            });
-                            setSelected((s) => new Set(s).add(id));
-                            setAddingCard(false);
-                            setCardLast4("");
-                          }}
-                          className="ml-auto rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAddingCard(false)}
-                          className="rounded-full px-3 py-1.5 text-xs text-muted-foreground"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
+                    <AddCardForm
+                      onCancel={() => setAddingCard(false)}
+                      onSave={({ brand, last4, label }) => {
+                        const id = `pm_${brand}_${last4}_${Date.now()}`;
+                        onAddMethod({ id, kind: "card", brand, last4, label });
+                        setSelected((s) => new Set(s).add(id));
+                        setAddingCard(false);
+                      }}
+                    />
                   ) : (
                     <button
                       type="button"

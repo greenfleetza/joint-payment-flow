@@ -12,6 +12,15 @@ import { CartSummary } from "@/components/cart-summary";
 import { PaymentMethodPicker, type MethodAllocation } from "@/components/payment-method-picker";
 import { PaymentMethodSheet } from "@/components/payment-method-sheet";
 import { txStore, useTransaction } from "@/lib/tx-store";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/checkout/$sessionId/pay")({
   head: () => ({
@@ -35,6 +44,14 @@ function PayShare() {
   );
   const contributor = tx?.contributors.find((c) => c.id === selectedContributorId) ?? tx?.contributors.find((c) => c.isInitiator);
   const share = contributor?.shareCents ?? tx?.totalCents ?? 0;
+
+  // Already-paid guard: if this contributor is paid, block entry
+  const alreadyPaid = !!contributor && contributor.status === "paid";
+  const allPaid = !!tx && tx.contributors.length > 0 && tx.contributors.every((c) => c.status === "paid");
+  function dismissAlreadyPaid() {
+    if (allPaid) navigate({ to: "/checkout/$sessionId/complete", params: { sessionId } });
+    else navigate({ to: "/checkout/$sessionId/status", params: { sessionId } });
+  }
 
   // Which method IDs are currently selected for allocation (from the sheet).
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -115,6 +132,19 @@ function PayShare() {
       step={3}
       showClose
     >
+      <AlertDialog open={alreadyPaid}>
+        <AlertDialogContent className="z-[10000]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>This transaction has already been paid</AlertDialogTitle>
+            <AlertDialogDescription>
+              {contributor?.name ? `${contributor.name}'s ` : "Your "}share for transaction {sessionId} is already settled. You'll be taken to the {allPaid ? "completed thread" : "payment status"} view.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={dismissAlreadyPaid}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <form onSubmit={submit} className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-secondary/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
