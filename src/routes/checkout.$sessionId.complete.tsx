@@ -101,10 +101,10 @@ function Complete() {
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => downloadReceiptPdf(tx)}
             className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background"
           >
-            <Download className="h-4 w-4" /> Download receipt
+            <Download className="h-4 w-4" /> Download PDF
           </button>
           <button
             type="button"
