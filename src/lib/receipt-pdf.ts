@@ -39,8 +39,8 @@ export function downloadReceiptPdf(tx: Transaction) {
   y += 18;
   doc.setFont("helvetica", "normal");
   tx.items.forEach((it) => {
-    doc.text(`${it.qty ?? 1} × ${it.name}`, 56, y);
-    doc.text(formatMoney(it.amountCents * (it.qty ?? 1)), pageW - 56, y, { align: "right" });
+    doc.text(`${it.qty} × ${it.name}`, 56, y);
+    doc.text(formatMoney(it.unitCents * it.qty), pageW - 56, y, { align: "right" });
     y += 14;
   });
 
