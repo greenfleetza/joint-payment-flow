@@ -106,20 +106,27 @@ function Invited() {
           </div>
         </div>
 
-      {/* Split action row — share link + payment status */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Split action row — share link + pay your share + payment status */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={openShareDialog}
-          className="rounded-full border border-border bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
+          className="flex-1 min-w-[120px] rounded-full border border-border bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
         >
           <Share2 className="inline h-3 w-3 mr-1" />
           Share Link
         </button>
         <button
           type="button"
+          onClick={goPay}
+          className="flex-1 min-w-[120px] rounded-full bg-foreground px-3 py-2 text-xs font-semibold uppercase tracking-wider text-background transition-transform active:scale-[0.97]"
+        >
+          Pay Your Share
+        </button>
+        <button
+          type="button"
           onClick={() => window.open(`/checkout/${sessionId}/status`, "_blank")}
-          className="rounded-full bg-foreground px-3 py-2 text-xs font-semibold uppercase tracking-wider text-background transition-transform active:scale-[0.97]"
+          className="rounded-full border border-border bg-white/80 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground backdrop-blur-md transition-colors hover:bg-white"
         >
           Payment Status
         </button>

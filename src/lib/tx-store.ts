@@ -1,5 +1,5 @@
 // Transaction store — keeps every checkout thread's data keyed by tx id.
-// Frontend-only; survives client-side navigation but not full reloads.
+// Persists to localStorage so data survives page reloads and works across tabs.
 import { useSyncExternalStore } from "react";
 import { demoSession, type DemoCartItem } from "./demo-session";
 
@@ -72,15 +72,53 @@ export const DEFAULT_METHODS: TxMethod[] = [
   { id: "pm_zelle", kind: "wallet", label: "Zelle", brand: "zelle" },
 ];
 
+// ---------- localStorage persistence ----------
+
+const STORAGE_KEY = "zakapay_transactions";
+
+function loadFromStorage(): Record<string, Transaction> {
+  try {
+    if (typeof window === "undefined") return {};
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as Record<string, Transaction>;
+  } catch {
+    return {};
+  }
+}
+
+function saveToStorage(txs: Record<string, Transaction>) {
+  try {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(txs));
+  } catch {
+    // Storage full or unavailable — fail silently
+  }
+}
+
 // ---------- store ----------
 
 const SEVEN_DAYS = 1000 * 60 * 60 * 24 * 7;
 
-const state: { txs: Record<string, Transaction> } = { txs: {} };
+// Initialize from localStorage (works across tabs and page reloads)
+const state: { txs: Record<string, Transaction> } = { txs: loadFromStorage() };
 const listeners = new Set<() => void>();
 
 function emit() {
+  saveToStorage(state.txs);
   for (const l of listeners) l();
+}
+
+// Listen for storage changes from other tabs
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY && e.newValue) {
+      try {
+        state.txs = JSON.parse(e.newValue) as Record<string, Transaction>;
+        for (const l of listeners) l();
+      } catch { /* ignore */ }
+    }
+  });
 }
 
 function randSuffix(n = 7) {

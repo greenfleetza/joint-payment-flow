@@ -166,8 +166,9 @@ function ContributorSetup() {
                         aria-label="Share amount"
                         type="text"
                         inputMode="decimal"
-                        value={((r.shareCents ?? 0) / 100).toFixed(2)}
-                        onChange={(e) => {
+                        key={`${r.id}-${r.shareCents}`}
+                        defaultValue={((r.shareCents ?? 0) / 100).toFixed(2)}
+                        onBlur={(e) => {
                           const raw = e.target.value;
                           const parsed = raw === "" ? 0 : Number.parseFloat(raw);
                           update(r.id, { shareCents: Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100)) : 0 });
