@@ -236,14 +236,20 @@ function StatusScreen() {
                       <button type="button" onClick={() => payFor(c.id)} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background">
                         <CreditCard className="h-3 w-3" /> Pay for them
                       </button>
+                      <button type="button" onClick={() => cover(c.id)} className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-white">
+                        <HandCoins className="h-3 w-3" /> Cover their share
+                      </button>
                       <button type="button" onClick={() => remind(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         <Send className="h-3 w-3" /> Send reminder
                       </button>
-                      <button type="button" onClick={() => share(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
+                      <button type="button" onClick={() => shareLink(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         <Share2 className="h-3 w-3" /> Share link
                       </button>
                       <button type="button" onClick={() => setEditing(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         Edit details
+                      </button>
+                      <button type="button" onClick={() => cancel(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--destructive)]/40 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--destructive)]">
+                        <XCircle className="h-3 w-3" /> Cancel
                       </button>
                     </div>
                   )}
@@ -251,6 +257,12 @@ function StatusScreen() {
               );
             })}
           </ul>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
+            <span className="text-xs text-muted-foreground">Unpaid: <span className="tabular font-semibold text-foreground">{formatMoney(unpaidCents)}</span></span>
+            <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
+              <Download className="h-3 w-3" /> Export CSV
+            </button>
+          </div>
         </GlassCard>
       </div>
 
@@ -266,16 +278,6 @@ function StatusScreen() {
           setEditing(null);
         }}
       />
-
-      {toast && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-6 left-1/2 z-[9997] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg"
-        >
-          {toast}
-        </motion.div>
-      )}
     </CheckoutShell>
   );
 }
