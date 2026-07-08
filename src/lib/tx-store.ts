@@ -27,15 +27,20 @@ export interface TxAllocation {
   amountCents: number;
 }
 
+export type ContributorStatus = "pending" | "paid" | "failed" | "cancelled";
+
 export interface TxContributor {
   id: string;
   name: string;
   email: string;
   shareCents: number;
   isInitiator?: boolean;
-  status: "pending" | "paid" | "failed";
+  status: ContributorStatus;
   delivery: "sent" | "delivered" | "read" | "undelivered";
   allocations: TxAllocation[];
+  coveredByInitiator?: boolean;
+  lastReminderAt?: number;
+  invitedAt?: number;
 }
 
 export interface Transaction {
@@ -53,9 +58,13 @@ export interface Transaction {
   contributors: TxContributor[];
   hostAllocations: TxAllocation[];
   methods: TxMethod[];
-  status: "collecting" | "processing" | "complete";
+  status: "collecting" | "processing" | "complete" | "expired" | "failed";
   createdAt: number;
   expiresAt: number;
+  failedMethods: string[];
+  correlationId?: string;
+  receiptsSentAt?: number;
+  lastFailureReason?: string;
 }
 
 // ---------- default catalog ----------
@@ -150,6 +159,8 @@ function baseTx(id: string, kind: Transaction["kind"]): Transaction {
     status: "collecting",
     createdAt: Date.now(),
     expiresAt: Date.now() + SEVEN_DAYS,
+    failedMethods: [],
+    correlationId: undefined,
   };
 }
 
@@ -205,6 +216,42 @@ export const txStore = {
   },
   applyPromo(id: string, code: string, discountCents: number) {
     this.update(id, { promoCode: code, promoDiscountCents: discountCents });
+  },
+  markMethodFailed(id: string, methodId: string, reason?: string) {
+    const tx = state.txs[id];
+    if (!tx) return;
+    const failed = tx.failedMethods.includes(methodId) ? tx.failedMethods : [...tx.failedMethods, methodId];
+    this.update(id, { failedMethods: failed, lastFailureReason: reason, status: "failed" });
+  },
+  clearFailedMethods(id: string) {
+    const tx = state.txs[id];
+    if (!tx) return;
+    this.update(id, { failedMethods: [], lastFailureReason: undefined, status: "collecting" });
+  },
+  cancelContributor(id: string, cid: string) {
+    this.patchContributor(id, cid, { status: "cancelled" });
+  },
+  coverContributor(id: string, cid: string) {
+    // Mark that the initiator will cover this share; caller then routes to /pay?to=cid.
+    this.patchContributor(id, cid, { coveredByInitiator: true });
+  },
+  markReceiptsSent(id: string) {
+    this.update(id, { receiptsSentAt: Date.now() });
+  },
+  setCorrelationId(id: string, cid: string) {
+    const tx = state.txs[id];
+    if (!tx || tx.correlationId) return;
+    this.update(id, { correlationId: cid });
+  },
+  markExpiredIfNeeded(id: string): boolean {
+    const tx = state.txs[id];
+    if (!tx) return false;
+    if (tx.status === "expired") return true;
+    if (Date.now() > tx.expiresAt && tx.status !== "complete") {
+      this.update(id, { status: "expired" });
+      return true;
+    }
+    return false;
   },
 };
 
