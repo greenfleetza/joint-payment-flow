@@ -43,7 +43,7 @@ function Complete() {
         totalCents: tx.totalCents - tx.promoDiscountCents,
         correlationId: tx.correlationId ?? "no-cid",
         recipients: tx.contributors.map((c) => ({ name: c.name, email: c.email, shareCents: c.shareCents })),
-        lineItems: tx.items.map((i) => ({ name: i.name, amountCents: (i.unitCents ?? 0) * (i.quantity ?? 1) })),
+        lineItems: tx.items.map((i) => ({ name: i.name, amountCents: (i.unitCents ?? 0) * (i.qty ?? 1) })),
       } });
     }).then(() => {
       import("@/lib/tx-store").then(({ txStore }) => txStore.markReceiptsSent(sessionId));
