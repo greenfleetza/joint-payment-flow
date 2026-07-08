@@ -50,7 +50,7 @@ function Failed() {
           </p>
           {failed.length > 0 && (
             <ul className="mt-3 flex flex-wrap justify-center gap-1.5 text-xs">
-              {failed.map((id) => {
+              {failed.map((id: string) => {
                 const m = tx?.methods.find((x) => x.id === id);
                 return (
                   <li key={id} className="rounded-full bg-[color:var(--destructive)]/10 px-2.5 py-1 font-medium text-[color:var(--destructive)]">
