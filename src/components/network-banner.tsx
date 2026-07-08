@@ -8,7 +8,8 @@ export function NetworkBanner() {
   useEffect(() => {
     installNetworkRecovery();
     setOnline(isOnline());
-    return onConnectivityChange(setOnline);
+    const unsub = onConnectivityChange(setOnline);
+    return () => { unsub(); };
   }, []);
   if (online) return null;
   return (

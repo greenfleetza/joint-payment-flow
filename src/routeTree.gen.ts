@@ -22,6 +22,8 @@ import { Route as CheckoutSessionIdStatusRouteImport } from './routes/checkout.$
 import { Route as CheckoutSessionIdProcessingRouteImport } from './routes/checkout.$sessionId.processing'
 import { Route as CheckoutSessionIdPayRouteImport } from './routes/checkout.$sessionId.pay'
 import { Route as CheckoutSessionIdInvitedRouteImport } from './routes/checkout.$sessionId.invited'
+import { Route as CheckoutSessionIdFailedRouteImport } from './routes/checkout.$sessionId.failed'
+import { Route as CheckoutSessionIdExpiredRouteImport } from './routes/checkout.$sessionId.expired'
 import { Route as CheckoutSessionIdContributorsRouteImport } from './routes/checkout.$sessionId.contributors'
 import { Route as CheckoutSessionIdCompleteRouteImport } from './routes/checkout.$sessionId.complete'
 import { Route as CheckoutSessionIdCardsRouteImport } from './routes/checkout.$sessionId.cards'
@@ -94,6 +96,17 @@ const CheckoutSessionIdInvitedRoute =
     path: '/checkout/$sessionId/invited',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CheckoutSessionIdFailedRoute = CheckoutSessionIdFailedRouteImport.update({
+  id: '/checkout/$sessionId/failed',
+  path: '/checkout/$sessionId/failed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutSessionIdExpiredRoute =
+  CheckoutSessionIdExpiredRouteImport.update({
+    id: '/checkout/$sessionId/expired',
+    path: '/checkout/$sessionId/expired',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CheckoutSessionIdContributorsRoute =
   CheckoutSessionIdContributorsRouteImport.update({
     id: '/checkout/$sessionId/contributors',
@@ -128,6 +141,8 @@ export interface FileRoutesByFullPath {
   '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
   '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
   '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
+  '/checkout/$sessionId/expired': typeof CheckoutSessionIdExpiredRoute
+  '/checkout/$sessionId/failed': typeof CheckoutSessionIdFailedRoute
   '/checkout/$sessionId/invited': typeof CheckoutSessionIdInvitedRoute
   '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
   '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
@@ -146,6 +161,8 @@ export interface FileRoutesByTo {
   '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
   '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
   '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
+  '/checkout/$sessionId/expired': typeof CheckoutSessionIdExpiredRoute
+  '/checkout/$sessionId/failed': typeof CheckoutSessionIdFailedRoute
   '/checkout/$sessionId/invited': typeof CheckoutSessionIdInvitedRoute
   '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
   '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
@@ -166,6 +183,8 @@ export interface FileRoutesById {
   '/checkout/$sessionId/cards': typeof CheckoutSessionIdCardsRoute
   '/checkout/$sessionId/complete': typeof CheckoutSessionIdCompleteRoute
   '/checkout/$sessionId/contributors': typeof CheckoutSessionIdContributorsRoute
+  '/checkout/$sessionId/expired': typeof CheckoutSessionIdExpiredRoute
+  '/checkout/$sessionId/failed': typeof CheckoutSessionIdFailedRoute
   '/checkout/$sessionId/invited': typeof CheckoutSessionIdInvitedRoute
   '/checkout/$sessionId/pay': typeof CheckoutSessionIdPayRoute
   '/checkout/$sessionId/processing': typeof CheckoutSessionIdProcessingRoute
@@ -186,6 +205,8 @@ export interface FileRouteTypes {
     | '/checkout/$sessionId/cards'
     | '/checkout/$sessionId/complete'
     | '/checkout/$sessionId/contributors'
+    | '/checkout/$sessionId/expired'
+    | '/checkout/$sessionId/failed'
     | '/checkout/$sessionId/invited'
     | '/checkout/$sessionId/pay'
     | '/checkout/$sessionId/processing'
@@ -204,6 +225,8 @@ export interface FileRouteTypes {
     | '/checkout/$sessionId/cards'
     | '/checkout/$sessionId/complete'
     | '/checkout/$sessionId/contributors'
+    | '/checkout/$sessionId/expired'
+    | '/checkout/$sessionId/failed'
     | '/checkout/$sessionId/invited'
     | '/checkout/$sessionId/pay'
     | '/checkout/$sessionId/processing'
@@ -223,6 +246,8 @@ export interface FileRouteTypes {
     | '/checkout/$sessionId/cards'
     | '/checkout/$sessionId/complete'
     | '/checkout/$sessionId/contributors'
+    | '/checkout/$sessionId/expired'
+    | '/checkout/$sessionId/failed'
     | '/checkout/$sessionId/invited'
     | '/checkout/$sessionId/pay'
     | '/checkout/$sessionId/processing'
@@ -239,6 +264,8 @@ export interface RootRouteChildren {
   CheckoutSessionIdCardsRoute: typeof CheckoutSessionIdCardsRoute
   CheckoutSessionIdCompleteRoute: typeof CheckoutSessionIdCompleteRoute
   CheckoutSessionIdContributorsRoute: typeof CheckoutSessionIdContributorsRoute
+  CheckoutSessionIdExpiredRoute: typeof CheckoutSessionIdExpiredRoute
+  CheckoutSessionIdFailedRoute: typeof CheckoutSessionIdFailedRoute
   CheckoutSessionIdInvitedRoute: typeof CheckoutSessionIdInvitedRoute
   CheckoutSessionIdPayRoute: typeof CheckoutSessionIdPayRoute
   CheckoutSessionIdProcessingRoute: typeof CheckoutSessionIdProcessingRoute
@@ -339,6 +366,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutSessionIdInvitedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout/$sessionId/failed': {
+      id: '/checkout/$sessionId/failed'
+      path: '/checkout/$sessionId/failed'
+      fullPath: '/checkout/$sessionId/failed'
+      preLoaderRoute: typeof CheckoutSessionIdFailedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$sessionId/expired': {
+      id: '/checkout/$sessionId/expired'
+      path: '/checkout/$sessionId/expired'
+      fullPath: '/checkout/$sessionId/expired'
+      preLoaderRoute: typeof CheckoutSessionIdExpiredRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checkout/$sessionId/contributors': {
       id: '/checkout/$sessionId/contributors'
       path: '/checkout/$sessionId/contributors'
@@ -397,6 +438,8 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutSessionIdCardsRoute: CheckoutSessionIdCardsRoute,
   CheckoutSessionIdCompleteRoute: CheckoutSessionIdCompleteRoute,
   CheckoutSessionIdContributorsRoute: CheckoutSessionIdContributorsRoute,
+  CheckoutSessionIdExpiredRoute: CheckoutSessionIdExpiredRoute,
+  CheckoutSessionIdFailedRoute: CheckoutSessionIdFailedRoute,
   CheckoutSessionIdInvitedRoute: CheckoutSessionIdInvitedRoute,
   CheckoutSessionIdPayRoute: CheckoutSessionIdPayRoute,
   CheckoutSessionIdProcessingRoute: CheckoutSessionIdProcessingRoute,
@@ -406,13 +449,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

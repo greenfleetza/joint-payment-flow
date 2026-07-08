@@ -31,19 +31,24 @@ async function getSigningKey(): Promise<CryptoKey> {
     localStorage.setItem(KEY_STORAGE, raw);
   }
   const bytes = base64UrlToBytes(raw);
+  const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   return crypto.subtle.importKey(
     "raw",
-    bytes,
+    buf,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
   );
 }
 
+function u8ToArrayBuffer(u: Uint8Array): ArrayBuffer {
+  return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength) as ArrayBuffer;
+}
+
 async function sign(payload: string): Promise<string> {
   const key = await getSigningKey();
   const enc = new TextEncoder().encode(payload);
-  const sig = await crypto.subtle.sign("HMAC", key, enc);
+  const sig = await crypto.subtle.sign("HMAC", key, u8ToArrayBuffer(enc));
   return bytesToBase64Url(new Uint8Array(sig));
 }
 
@@ -76,8 +81,8 @@ export async function verifySignedLink(
     const ok = await crypto.subtle.verify(
       "HMAC",
       key,
-      base64UrlToBytes(sig),
-      new TextEncoder().encode(payload),
+      u8ToArrayBuffer(base64UrlToBytes(sig)),
+      u8ToArrayBuffer(new TextEncoder().encode(payload)),
     );
     return ok ? { ok: true } : { ok: false, reason: "bad_signature" };
   } catch {
