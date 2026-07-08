@@ -1,9 +1,11 @@
-// S05 Contributor Payment Status — progress, cart, per-contributor actions.
+// S05 Contributor Payment Status — progress, cart, per-contributor actions,
+// initiator can Cover / Cancel unpaid contributors, honors expired sessions.
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Share2, CreditCard } from "lucide-react";
+import { Send, Share2, CreditCard, HandCoins, XCircle, Download } from "lucide-react";
 import { openEmailComposer, shareOrCopy, buildReminderEmail } from "@/lib/email-templates";
+import { toast } from "sonner";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
@@ -13,6 +15,11 @@ import { txStore, useTransaction, txPaidCents } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getCorrelationId } from "@/lib/correlation-id";
+import { emit } from "@/lib/domain-events";
+import { buildSignedContributorLink } from "@/lib/signed-link";
+import { downloadCsv } from "@/lib/csv-export";
 
 export const Route = createFileRoute("/checkout/$sessionId/status")({
   head: () => ({
