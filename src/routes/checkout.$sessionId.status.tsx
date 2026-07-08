@@ -51,15 +51,27 @@ function StatusScreen() {
   const navigate = useNavigate();
   const tx = useTransaction(sessionId);
   const timeLeft = useTimeLeft(tx?.expiresAt);
-  const [toast, setToast] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+
+  // Expired guard
+  useEffect(() => {
+    if (!tx) return;
+    if (txStore.markExpiredIfNeeded(sessionId)) {
+      navigate({ to: "/checkout/$sessionId/expired", params: { sessionId } });
+    }
+  }, [tx, sessionId, navigate]);
 
   const total = tx?.totalCents ?? 0;
   const paidCents = tx ? txPaidCents(tx) : 0;
-  const paidCount = tx?.contributors.filter((c) => c.status === "paid").length ?? 0;
-  const totalCount = tx?.contributors.length ?? 0;
+  const activeContribs = tx?.contributors.filter((c) => c.status !== "cancelled") ?? [];
+  const paidCount = activeContribs.filter((c) => c.status === "paid").length;
+  const totalCount = activeContribs.length;
+  const unpaidCents = total - paidCents;
 
-  const allDone = useMemo(() => tx?.contributors.length && tx.contributors.every((c) => c.status === "paid"), [tx]);
+  const allDone = useMemo(
+    () => activeContribs.length > 0 && activeContribs.every((c) => c.status === "paid"),
+    [activeContribs],
+  );
   useEffect(() => {
     if (allDone) {
       const t = setTimeout(() => navigate({ to: "/checkout/$sessionId/complete", params: { sessionId } }), 900);
@@ -70,30 +82,60 @@ function StatusScreen() {
   function payFor(cid: string) {
     navigate({ to: "/checkout/$sessionId/pay", params: { sessionId }, search: { to: cid } });
   }
+  async function shareLink(cid: string) {
+    const rl = checkRateLimit("share-link");
+    if (!rl.ok) { toast.warning(`Slow down — try again in ${rl.retryAfterSec}s`); return; }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    let link = `${origin}/c/${sessionId}?to=${cid}`;
+    try { link = await buildSignedContributorLink(origin, { txId: sessionId, contributorId: cid }); } catch { /* fallback to unsigned */ }
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try { await navigator.share({ title: `${tx?.merchantName ?? "ZakaPay"} payment link`, text: `Pay your share for ${tx?.merchantName}`, url: link }); toast.success("Share dialog opened"); return; }
+      catch { /* fall back */ }
+    }
+    await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
+    toast.success("Link copied");
+  }
   function remind(cid: string) {
     const c = tx?.contributors.find((x) => x.id === cid);
     if (!c || !tx) return;
-    const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
-    const { subject, text } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link: shareLink, transactionId: sessionId });
+    const rl = checkRateLimit("send-reminder");
+    if (!rl.ok) { toast.warning(`Slow down — try again in ${rl.retryAfterSec}s`); return; }
+    const link = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
+    const { subject, text } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link, transactionId: sessionId });
     openEmailComposer({ recipientEmail: c.email, subject, body: text });
-    setToast(`Reminder sent to ${c.name}`);
-    setTimeout(() => setToast(null), 1600);
+    txStore.patchContributor(sessionId, cid, { lastReminderAt: Date.now() });
+    emit({ type: "ContributorReminded", txId: sessionId, contributorId: cid, at: Date.now(), correlationId: getCorrelationId() });
+    toast.success(`Reminder queued for ${c.name}`);
   }
-  async function share(cid: string) {
-    const link = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : "";
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: `${tx?.merchantName ?? "ZakaPay"} payment link`, text: `Pay your share for ${tx?.merchantName}`, url: link });
-        setToast("Share dialog opened");
-      } catch {
-        await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
-        setToast("Link copied");
-      }
-    } else {
-      await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
-      setToast("Link copied");
-    }
-    setTimeout(() => setToast(null), 1600);
+  function cover(cid: string) {
+    const c = tx?.contributors.find((x) => x.id === cid);
+    if (!c) return;
+    if (!confirm(`Cover ${c.name}'s share of ${formatMoney(c.shareCents)}?`)) return;
+    txStore.coverContributor(sessionId, cid);
+    emit({ type: "InitiatorCoveredContributor", txId: sessionId, contributorId: cid, amountCents: c.shareCents, at: Date.now(), correlationId: getCorrelationId() });
+    navigate({ to: "/checkout/$sessionId/pay", params: { sessionId }, search: { to: cid } });
+  }
+  function cancel(cid: string) {
+    const c = tx?.contributors.find((x) => x.id === cid);
+    if (!c) return;
+    if (!confirm(`Cancel ${c.name} from this split? Their share will be redistributed.`)) return;
+    txStore.cancelContributor(sessionId, cid);
+    emit({ type: "ContributorCancelled", txId: sessionId, contributorId: cid, at: Date.now(), correlationId: getCorrelationId() });
+    toast.success(`${c.name} cancelled`);
+  }
+  function exportCsv() {
+    if (!tx) return;
+    downloadCsv(`zakapay-${sessionId}-contributors.csv`, tx.contributors.map((c) => ({
+      transaction_id: sessionId,
+      contributor_id: c.id,
+      name: c.name,
+      email: c.email,
+      share_usd: (c.shareCents / 100).toFixed(2),
+      status: c.status,
+      is_host: c.isInitiator ? "yes" : "no",
+      covered_by_initiator: c.coveredByInitiator ? "yes" : "no",
+      methods: c.allocations.map((a) => a.methodId).join("|"),
+    })));
   }
 
   return (
