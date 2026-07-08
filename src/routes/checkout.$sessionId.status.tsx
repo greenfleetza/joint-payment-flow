@@ -1,9 +1,11 @@
-// S05 Contributor Payment Status — progress, cart, per-contributor actions.
+// S05 Contributor Payment Status — progress, cart, per-contributor actions,
+// initiator can Cover / Cancel unpaid contributors, honors expired sessions.
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Share2, CreditCard } from "lucide-react";
+import { Send, Share2, CreditCard, HandCoins, XCircle, Download } from "lucide-react";
 import { openEmailComposer, shareOrCopy, buildReminderEmail } from "@/lib/email-templates";
+import { toast } from "sonner";
 
 import { CheckoutShell } from "@/components/checkout-shell";
 import { GlassCard } from "@/components/glass-card";
@@ -13,6 +15,11 @@ import { txStore, useTransaction, txPaidCents } from "@/lib/tx-store";
 import { formatMoney, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { spring } from "@/lib/motion";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getCorrelationId } from "@/lib/correlation-id";
+import { emit } from "@/lib/domain-events";
+import { buildSignedContributorLink } from "@/lib/signed-link";
+import { downloadCsv } from "@/lib/csv-export";
 
 export const Route = createFileRoute("/checkout/$sessionId/status")({
   head: () => ({
@@ -44,15 +51,27 @@ function StatusScreen() {
   const navigate = useNavigate();
   const tx = useTransaction(sessionId);
   const timeLeft = useTimeLeft(tx?.expiresAt);
-  const [toast, setToast] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+
+  // Expired guard
+  useEffect(() => {
+    if (!tx) return;
+    if (txStore.markExpiredIfNeeded(sessionId)) {
+      navigate({ to: "/checkout/$sessionId/expired", params: { sessionId } });
+    }
+  }, [tx, sessionId, navigate]);
 
   const total = tx?.totalCents ?? 0;
   const paidCents = tx ? txPaidCents(tx) : 0;
-  const paidCount = tx?.contributors.filter((c) => c.status === "paid").length ?? 0;
-  const totalCount = tx?.contributors.length ?? 0;
+  const activeContribs = tx?.contributors.filter((c) => c.status !== "cancelled") ?? [];
+  const paidCount = activeContribs.filter((c) => c.status === "paid").length;
+  const totalCount = activeContribs.length;
+  const unpaidCents = total - paidCents;
 
-  const allDone = useMemo(() => tx?.contributors.length && tx.contributors.every((c) => c.status === "paid"), [tx]);
+  const allDone = useMemo(
+    () => activeContribs.length > 0 && activeContribs.every((c) => c.status === "paid"),
+    [activeContribs],
+  );
   useEffect(() => {
     if (allDone) {
       const t = setTimeout(() => navigate({ to: "/checkout/$sessionId/complete", params: { sessionId } }), 900);
@@ -63,30 +82,60 @@ function StatusScreen() {
   function payFor(cid: string) {
     navigate({ to: "/checkout/$sessionId/pay", params: { sessionId }, search: { to: cid } });
   }
+  async function shareLink(cid: string) {
+    const rl = checkRateLimit("share-link");
+    if (!rl.ok) { toast.warning(`Slow down — try again in ${rl.retryAfterSec}s`); return; }
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    let link = `${origin}/c/${sessionId}?to=${cid}`;
+    try { link = await buildSignedContributorLink(origin, { txId: sessionId, contributorId: cid }); } catch { /* fallback to unsigned */ }
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try { await navigator.share({ title: `${tx?.merchantName ?? "ZakaPay"} payment link`, text: `Pay your share for ${tx?.merchantName}`, url: link }); toast.success("Share dialog opened"); return; }
+      catch { /* fall back */ }
+    }
+    await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
+    toast.success("Link copied");
+  }
   function remind(cid: string) {
     const c = tx?.contributors.find((x) => x.id === cid);
     if (!c || !tx) return;
-    const shareLink = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
-    const { subject, text } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link: shareLink, transactionId: sessionId });
+    const rl = checkRateLimit("send-reminder");
+    if (!rl.ok) { toast.warning(`Slow down — try again in ${rl.retryAfterSec}s`); return; }
+    const link = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : `/c/${sessionId}?to=${cid}`;
+    const { subject, text } = buildReminderEmail({ merchantName: tx.merchantName, recipientName: c.name, recipientEmail: c.email, shareAmount: c.shareCents, link, transactionId: sessionId });
     openEmailComposer({ recipientEmail: c.email, subject, body: text });
-    setToast(`Reminder sent to ${c.name}`);
-    setTimeout(() => setToast(null), 1600);
+    txStore.patchContributor(sessionId, cid, { lastReminderAt: Date.now() });
+    emit({ type: "ContributorReminded", txId: sessionId, contributorId: cid, at: Date.now(), correlationId: getCorrelationId() });
+    toast.success(`Reminder queued for ${c.name}`);
   }
-  async function share(cid: string) {
-    const link = typeof window !== "undefined" ? `${window.location.origin}/c/${sessionId}?to=${cid}` : "";
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({ title: `${tx?.merchantName ?? "ZakaPay"} payment link`, text: `Pay your share for ${tx?.merchantName}`, url: link });
-        setToast("Share dialog opened");
-      } catch {
-        await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
-        setToast("Link copied");
-      }
-    } else {
-      await shareOrCopy(link, `${tx?.merchantName ?? "ZakaPay"} payment link`);
-      setToast("Link copied");
-    }
-    setTimeout(() => setToast(null), 1600);
+  function cover(cid: string) {
+    const c = tx?.contributors.find((x) => x.id === cid);
+    if (!c) return;
+    if (!confirm(`Cover ${c.name}'s share of ${formatMoney(c.shareCents)}?`)) return;
+    txStore.coverContributor(sessionId, cid);
+    emit({ type: "InitiatorCoveredContributor", txId: sessionId, contributorId: cid, amountCents: c.shareCents, at: Date.now(), correlationId: getCorrelationId() });
+    navigate({ to: "/checkout/$sessionId/pay", params: { sessionId }, search: { to: cid } });
+  }
+  function cancel(cid: string) {
+    const c = tx?.contributors.find((x) => x.id === cid);
+    if (!c) return;
+    if (!confirm(`Cancel ${c.name} from this split? Their share will be redistributed.`)) return;
+    txStore.cancelContributor(sessionId, cid);
+    emit({ type: "ContributorCancelled", txId: sessionId, contributorId: cid, at: Date.now(), correlationId: getCorrelationId() });
+    toast.success(`${c.name} cancelled`);
+  }
+  function exportCsv() {
+    if (!tx) return;
+    downloadCsv(`zakapay-${sessionId}-contributors.csv`, tx.contributors.map((c) => ({
+      transaction_id: sessionId,
+      contributor_id: c.id,
+      name: c.name,
+      email: c.email,
+      share_usd: (c.shareCents / 100).toFixed(2),
+      status: c.status,
+      is_host: c.isInitiator ? "yes" : "no",
+      covered_by_initiator: c.coveredByInitiator ? "yes" : "no",
+      methods: c.allocations.map((a) => a.methodId).join("|"),
+    })));
   }
 
   return (
@@ -187,14 +236,20 @@ function StatusScreen() {
                       <button type="button" onClick={() => payFor(c.id)} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background">
                         <CreditCard className="h-3 w-3" /> Pay for them
                       </button>
+                      <button type="button" onClick={() => cover(c.id)} className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-white">
+                        <HandCoins className="h-3 w-3" /> Cover their share
+                      </button>
                       <button type="button" onClick={() => remind(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         <Send className="h-3 w-3" /> Send reminder
                       </button>
-                      <button type="button" onClick={() => share(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
+                      <button type="button" onClick={() => shareLink(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         <Share2 className="h-3 w-3" /> Share link
                       </button>
                       <button type="button" onClick={() => setEditing(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
                         Edit details
+                      </button>
+                      <button type="button" onClick={() => cancel(c.id)} className="inline-flex items-center gap-1.5 rounded-full border border-[color:var(--destructive)]/40 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-[color:var(--destructive)]">
+                        <XCircle className="h-3 w-3" /> Cancel
                       </button>
                     </div>
                   )}
@@ -202,6 +257,12 @@ function StatusScreen() {
               );
             })}
           </ul>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
+            <span className="text-xs text-muted-foreground">Unpaid: <span className="tabular font-semibold text-foreground">{formatMoney(unpaidCents)}</span></span>
+            <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white/80 px-3 py-1.5 text-[11px] font-semibold">
+              <Download className="h-3 w-3" /> Export CSV
+            </button>
+          </div>
         </GlassCard>
       </div>
 
@@ -217,16 +278,6 @@ function StatusScreen() {
           setEditing(null);
         }}
       />
-
-      {toast && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed bottom-6 left-1/2 z-[9997] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background shadow-lg"
-        >
-          {toast}
-        </motion.div>
-      )}
     </CheckoutShell>
   );
 }

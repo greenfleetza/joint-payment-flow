@@ -16,6 +16,8 @@ import { AppToaster } from "@/components/app-toaster";
 import { ClerkAppProvider } from "@/integrations/clerk";
 import { ConvexAppProvider } from "@/lib/convex";
 import { initObservability } from "@/lib/observability";
+import { NetworkBanner } from "@/components/network-banner";
+import { installNetworkRecovery } from "@/lib/network-recovery";
 
 function NotFoundComponent() {
   return (
@@ -134,12 +136,14 @@ function RootComponent() {
 
   useEffect(() => {
     initObservability();
+    installNetworkRecovery();
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <ClerkAppProvider>
         <ConvexAppProvider>
+          <NetworkBanner />
           <Outlet />
           <AppToaster />
         </ConvexAppProvider>

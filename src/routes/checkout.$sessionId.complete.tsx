@@ -1,5 +1,6 @@
-// S09 Thread Completed — celebratory success screen for both contributor & multi-card tx.
+// S09 Thread Completed — celebratory success + auto-send receipts to all contributors.
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { CheckCircle2, Download, Printer } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -29,6 +30,27 @@ function Complete() {
   const { sessionId } = useParams({ from: "/checkout/$sessionId/complete" });
   const navigate = useNavigate();
   const tx = useTransaction(sessionId);
+
+  // Send email receipts to every contributor exactly once per completion.
+  useEffect(() => {
+    if (!tx) return;
+    if (tx.receiptsSentAt) return;
+    if (tx.contributors.length === 0) return;
+    import("@/lib/send-receipts.functions").then(({ sendReceiptsToContributors }) => {
+      return sendReceiptsToContributors({ data: {
+        txId: sessionId,
+        merchantName: tx.merchantName,
+        totalCents: tx.totalCents - tx.promoDiscountCents,
+        correlationId: tx.correlationId ?? "no-cid",
+        recipients: tx.contributors.map((c) => ({ name: c.name, email: c.email, shareCents: c.shareCents })),
+        lineItems: tx.items.map((i) => ({ name: i.name, amountCents: (i.unitCents ?? 0) * (i.qty ?? 1) })),
+      } });
+    }).then(() => {
+      import("@/lib/tx-store").then(({ txStore }) => txStore.markReceiptsSent(sessionId));
+      import("@/lib/domain-events").then(({ emit }) => emit({ type: "ReceiptsDispatched", txId: sessionId, recipientCount: tx.contributors.length, at: Date.now(), correlationId: tx.correlationId ?? "no-cid" }));
+    }).catch(() => { /* graceful degrade — no receipts */ });
+  }, [tx, sessionId]);
+
   if (!tx) return null;
 
   const isMulti = tx.kind === "multi_card";
